@@ -1,0 +1,503 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { motion } from "framer-motion"
+import { MapPin, Star, Clock, Utensils, Share, Phone, Mail } from "lucide-react"
+import { LikeButton } from "@/components/like-button"
+import { ShareModal } from "@/components/share-modal"
+import { ReviewForm } from "@/components/review-form"
+import { ReviewsList } from "@/components/reviews-list"
+
+interface Mess {
+  _id: string
+  name: string
+  description: string
+  address: string
+  location: string
+  monthlyPrice: number
+  dailyPrice: number
+  images: string[]
+  menu: {
+    day: string
+    breakfast: string
+    lunch: string
+    dinner: string
+  }[]
+  openingHours: {
+    breakfast: string
+    lunch: string
+    dinner: string
+  }
+  owner: {
+    _id: string
+    name: string
+    phone: string
+    email: string
+    image?: string
+  }
+  rating: number
+  reviews: number
+}
+
+export default function MessDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const { toast } = useToast()
+  const { user } = useAuth()
+
+  const [mess, setMess] = useState<Mess | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("menu")
+
+  useEffect(() => {
+    const fetchMess = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch(`/api/messes/${params.id}`)
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast({
+              title: "Mess not found",
+              description: "The mess you're looking for doesn't exist or has been removed.",
+              variant: "destructive",
+            })
+            router.push("/messes")
+            return
+          }
+          throw new Error("Failed to fetch mess details")
+        }
+
+        const data = await response.json()
+        setMess(data)
+      } catch (error) {
+        console.error("Error fetching mess details:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch mess details. Please try again later.",
+          variant: "destructive",
+        })
+
+        // No fallback - only show real data
+        setMess(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchMess()
+  }, [params.id, router, toast])
+
+  const handleRatingChange = (rating: number, count: number) => {
+    if (mess) {
+      setMess({
+        ...mess,
+        rating,
+        reviews: count,
+      })
+    }
+  }
+
+  const getShareUrl = () => {
+    if (typeof window !== "undefined") {
+      return window.location.href
+    }
+    return `https://secondhome.com/messes/${params.id}`
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading mess details...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!mess) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md px-4">
+          <h2 className="text-2xl font-bold mb-2">Mess Not Found</h2>
+          <p className="text-muted-foreground mb-6">The mess you're looking for doesn't exist or has been removed.</p>
+          <Button asChild>
+            <Link href="/messes">Browse Other Messes</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row gap-2 items-start mb-6">
+          <Link href="/messes" className="text-sm text-muted-foreground hover:text-primary">
+            Messes
+          </Link>
+          <span className="hidden md:inline text-muted-foreground">/</span>
+          <span className="text-sm">{mess.name}</span>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <motion.div
+              className="bg-white rounded-lg shadow-sm overflow-hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="relative">
+                <Badge className="absolute top-4 left-4 z-10">Mess</Badge>
+                <div className="absolute top-4 right-4 z-10 flex gap-2">
+                  <LikeButton itemType="mess" itemId={mess._id} />
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="rounded-full bg-white/80 backdrop-blur-sm"
+                    onClick={() => setIsShareModalOpen(true)}
+                  >
+                    <Share className="h-5 w-5" />
+                    <span className="sr-only">Share</span>
+                  </Button>
+                </div>
+                <Image
+                  src={mess.images[activeImageIndex] || "/placeholder.svg"}
+                  alt={mess.name}
+                  width={800}
+                  height={500}
+                  className="w-full h-[300px] md:h-[400px] object-cover"
+                  priority
+                />
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                  {mess.images.map((_, index) => (
+                    <button
+                      key={index}
+                      className={`w-2 h-2 rounded-full ${index === activeImageIndex ? "bg-white" : "bg-white/50"}`}
+                      onClick={() => setActiveImageIndex(index)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="flex justify-between items-start">
+                  <h1 className="text-2xl md:text-3xl font-bold">{mess.name}</h1>
+                  <div className="flex items-center">
+                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400 mr-1" />
+                    <span className="font-medium">{mess.rating.toFixed(1)}</span>
+                    <span className="text-sm text-muted-foreground ml-1">({mess.reviews} reviews)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center mt-2 text-muted-foreground">
+                  <MapPin className="w-5 h-5 mr-1 flex-shrink-0" />
+                  <span className="text-sm">{mess.address}</span>
+                </div>
+
+                <div className="mt-6">
+                  <h2 className="text-xl font-bold mb-3">Description</h2>
+                  <p className="text-muted-foreground">{mess.description}</p>
+                </div>
+
+                <div className="mt-8">
+                  <h2 className="text-xl font-bold mb-4">Meal Timings</h2>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center mb-2">
+                          <Clock className="w-5 h-5 mr-2 text-primary" />
+                          <h3 className="font-medium">Breakfast</h3>
+                        </div>
+                        <p className="text-muted-foreground">{mess.openingHours.breakfast}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center mb-2">
+                          <Clock className="w-5 h-5 mr-2 text-primary" />
+                          <h3 className="font-medium">Lunch</h3>
+                        </div>
+                        <p className="text-muted-foreground">{mess.openingHours.lunch}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center mb-2">
+                          <Clock className="w-5 h-5 mr-2 text-primary" />
+                          <h3 className="font-medium">Dinner</h3>
+                        </div>
+                        <p className="text-muted-foreground">{mess.openingHours.dinner}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Pricing</h2>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card>
+                      <CardContent className="p-4">
+                        <h3 className="font-medium mb-2">Monthly Subscription</h3>
+                        <div className="flex items-end">
+                          <span className="text-2xl font-bold">₹{mess.monthlyPrice}</span>
+                          <span className="text-muted-foreground ml-1">/month</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Includes breakfast, lunch, and dinner for the entire month
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <h3 className="font-medium mb-2">Daily Meal</h3>
+                        <div className="flex items-end">
+                          <span className="text-2xl font-bold">₹{mess.dailyPrice}</span>
+                          <span className="text-muted-foreground ml-1">/day</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Pay as you go for breakfast, lunch, and dinner
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="mt-8 bg-white rounded-lg shadow-sm overflow-hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="w-full border-b rounded-none p-0">
+                  <TabsTrigger value="menu" className="flex-1 rounded-none py-3">
+                    Weekly Menu
+                  </TabsTrigger>
+                  <TabsTrigger value="photos" className="flex-1 rounded-none py-3">
+                    Photos
+                  </TabsTrigger>
+                  <TabsTrigger value="reviews" className="flex-1 rounded-none py-3">
+                    Reviews
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="menu" className="p-6">
+                  <div className="space-y-6">
+                    {mess.menu.map((day, index) => (
+                      <Card key={index}>
+                        <CardContent className="p-4">
+                          <h3 className="font-bold text-lg mb-3">{day.day}</h3>
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <div>
+                              <div className="flex items-center mb-2">
+                                <Utensils className="w-4 h-4 mr-2 text-primary" />
+                                <h4 className="font-medium">Breakfast</h4>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{day.breakfast}</p>
+                            </div>
+                            <div>
+                              <div className="flex items-center mb-2">
+                                <Utensils className="w-4 h-4 mr-2 text-primary" />
+                                <h4 className="font-medium">Lunch</h4>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{day.lunch}</p>
+                            </div>
+                            <div>
+                              <div className="flex items-center mb-2">
+                                <Utensils className="w-4 h-4 mr-2 text-primary" />
+                                <h4 className="font-medium">Dinner</h4>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{day.dinner}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+                <TabsContent value="photos" className="p-6">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {mess.images.map((image, index) => (
+                      <div key={index} className="aspect-square rounded-lg overflow-hidden">
+                        <Image
+                          src={image || "/placeholder.svg"}
+                          alt={`${mess.name} - Photo ${index + 1}`}
+                          width={300}
+                          height={300}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          onClick={() => setActiveImageIndex(index)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+                <TabsContent value="reviews" className="p-6">
+                  <div className="space-y-8">
+                    <div>
+                      <h3 className="text-lg font-bold mb-4">Write a Review</h3>
+                      <ReviewForm itemType="mess" itemId={mess._id} onSuccess={() => setActiveTab("reviews")} />
+                    </div>
+
+                    <div className="pt-6 border-t">
+                      <h3 className="text-lg font-bold mb-4">Reviews</h3>
+                      <ReviewsList itemType="mess" itemId={mess._id} onRatingChange={handleRatingChange} />
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </motion.div>
+          </div>
+
+          <motion.div
+            className="lg:col-span-1"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-20">
+              <div className="mb-4 pb-4 border-b">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-bold">₹{mess.monthlyPrice}</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">or ₹{mess.dailyPrice}/day</p>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="font-bold mb-3">Contact Information</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+                      <Utensils className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{mess.owner.name}</p>
+                      <p className="text-sm text-muted-foreground">Mess Owner</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+                      <Phone className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{mess.owner.phone}</p>
+                      <p className="text-sm text-muted-foreground">Call or WhatsApp</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+                      <Mail className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{mess.owner.email}</p>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Button
+                  className="w-full h-12"
+                  onClick={() => {
+                    if (!user) {
+                      toast({
+                        title: "Login required",
+                        description: "Please login to subscribe to this mess",
+                        variant: "destructive",
+                      })
+                      router.push(`/login?redirect=/messes/${params.id}`)
+                      return
+                    }
+
+                    toast({
+                      title: "Subscription request sent",
+                      description: "The mess owner will contact you shortly to confirm your subscription.",
+                    })
+                  }}
+                >
+                  Subscribe Monthly
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full h-12"
+                  onClick={() => {
+                    if (!user) {
+                      toast({
+                        title: "Login required",
+                        description: "Please login to book a meal",
+                        variant: "destructive",
+                      })
+                      router.push(`/login?redirect=/messes/${params.id}`)
+                      return
+                    }
+
+                    toast({
+                      title: "Meal booked",
+                      description: "Your meal has been booked for today. You can pay at the mess.",
+                    })
+                  }}
+                >
+                  Book Daily Meal
+                </Button>
+              </div>
+
+              <div className="mt-6 pt-6 border-t">
+                <h3 className="font-bold mb-3">Meal Timings</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-2 text-primary" />
+                      <span className="text-sm">Breakfast</span>
+                    </div>
+                    <span className="text-sm font-medium">{mess.openingHours.breakfast}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-2 text-primary" />
+                      <span className="text-sm">Lunch</span>
+                    </div>
+                    <span className="text-sm font-medium">{mess.openingHours.lunch}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-2 text-primary" />
+                      <span className="text-sm">Dinner</span>
+                    </div>
+                    <span className="text-sm font-medium">{mess.openingHours.dinner}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title={mess.name}
+        url={getShareUrl()}
+      />
+    </div>
+  )
+}

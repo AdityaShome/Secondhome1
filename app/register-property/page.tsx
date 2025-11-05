@@ -1,0 +1,668 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { signIn, useSession } from "next-auth/react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
+import { useToast } from "@/components/ui/use-toast"
+import Image from "next/image"
+import {
+  Building2,
+  Mail,
+  Lock,
+  Phone,
+  User,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  Eye,
+  EyeOff,
+} from "lucide-react"
+import { motion } from "framer-motion"
+
+const signInSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+})
+
+const signUpSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string(),
+  otp: z.string().optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+})
+
+type SignInFormData = z.infer<typeof signInSchema>
+type SignUpFormData = z.infer<typeof signUpSchema>
+
+export default function RegisterPropertyPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const { data: session, status, update } = useSession()
+  const [isSignIn, setIsSignIn] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+
+  const signInForm = useForm<SignInFormData>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  })
+
+  const signUpForm = useForm<SignUpFormData>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      confirmPassword: "",
+      otp: "",
+    },
+  })
+
+  const handleSignIn = async (data: SignInFormData) => {
+    setIsLoading(true)
+    try {
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        toast({
+          title: "Sign in failed",
+          description: "Invalid email or password",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Wait for session to update
+      await update()
+      
+      // Small delay to ensure session is refreshed
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Fetch user data to check role
+      try {
+        const userResponse = await fetch("/api/user/profile")
+        if (userResponse.ok) {
+          const responseData = await userResponse.json()
+          const userData = responseData.user || responseData
+          const userRole = userData.role || "user"
+
+          if (userRole === "owner" || userRole === "admin") {
+            toast({
+              title: "Welcome back!",
+              description: "Redirecting to property listing...",
+            })
+            setTimeout(() => {
+              router.push("/list-property")
+            }, 1000)
+          } else {
+            toast({
+              title: "Owner Registration Required",
+              description: "This account is not registered as a property owner. Please register as an owner to list properties.",
+              variant: "destructive",
+            })
+            setIsSignIn(false) // Switch to sign up tab
+            setIsLoading(false)
+            return
+          }
+        } else {
+          // If we can't fetch user data, redirect anyway and let list-property page handle it
+          toast({
+            title: "Welcome back!",
+            description: "Redirecting...",
+          })
+          setTimeout(() => {
+            router.push("/list-property")
+          }, 1000)
+        }
+      } catch (error) {
+        // Fallback: redirect and let list-property page handle verification
+        toast({
+          title: "Welcome back!",
+          description: "Redirecting...",
+        })
+        setTimeout(() => {
+          router.push("/list-property")
+        }, 1000)
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const sendOTP = async (email: string) => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          type: "registration",
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        // Show specific error messages
+        if (response.status === 500 && data.error?.includes("not configured")) {
+          toast({
+            title: "Email Service Unavailable",
+            description: "Please contact support or try again later. Error: Email service not configured.",
+            variant: "destructive",
+          })
+        } else {
+          toast({
+            title: "Failed to send OTP",
+            description: data.error || data.details || "Please check your email and try again.",
+            variant: "destructive",
+          })
+        }
+        setIsLoading(false)
+        return
+      }
+
+      setOtpSent(true)
+      toast({
+        title: "✅ OTP Sent Successfully!",
+        description: `Check your email (${email}) for the 6-digit verification code. Valid for 10 minutes.`,
+      })
+    } catch (error: any) {
+      console.error("OTP send error:", error)
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to email service. Please check your internet connection and try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSignUp = async (data: SignUpFormData) => {
+    if (!otpSent) {
+      // First step: Send OTP
+      console.log("Sending OTP to:", data.email)
+      await sendOTP(data.email)
+      return
+    }
+
+    // Second step: Verify OTP and register
+    if (!data.otp || data.otp.length !== 6) {
+      toast({
+        title: "Invalid OTP",
+        description: "Please enter the 6-digit OTP sent to your email.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    console.log("Verifying OTP and registering...")
+    setIsLoading(true)
+    try {
+      // Verify OTP with API
+      const verifyResponse = await fetch("/api/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          otp: data.otp,
+          type: "registration",
+        }),
+      })
+
+      if (!verifyResponse.ok) {
+        const error = await verifyResponse.json()
+        throw new Error(error.error || "Invalid or expired OTP")
+      }
+
+      // Register user as property owner
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          phone: data.phone,
+          isPropertyOwner: true,
+        }),
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Registration failed")
+      }
+
+      // Auto sign in after registration or re-authenticate to refresh session
+      const signInResult = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      })
+
+      if (signInResult?.error) {
+        throw new Error("Auto sign-in failed. Please try logging in manually.")
+      }
+
+      // Refresh the session to get updated role
+      await update()
+
+      // Show appropriate success message
+      if (result.upgraded) {
+        toast({
+          title: "🎉 Account Upgraded!",
+          description: "You are now a property owner! Redirecting to list your property...",
+        })
+      } else if (result.created) {
+        toast({
+          title: "✅ Registration successful!",
+          description: "Welcome to Second Home! Redirecting to property listing...",
+        })
+      }
+
+      setTimeout(() => {
+        router.push("/list-property")
+      }, 1500)
+    } catch (error: any) {
+      toast({
+        title: "Registration failed",
+        description: error.message || "An error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const stats = [
+    { value: "5K+", label: "Property Owners", description: "Trusted partners across India" },
+    { value: "50K+", label: "Student Bookings", description: "Annual bookings on our platform" },
+    { value: "95%", label: "Success Rate", description: "Properties successfully listed" },
+  ]
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Hero Section with Background Image */}
+      <section
+        className="relative min-h-screen flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundImage: 'url(/secondhome_property.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center center',
+          backgroundRepeat: 'no-repeat',
+          imageRendering: 'high-quality',
+        } as React.CSSProperties}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-blue-900/70 to-slate-900/80" />
+        
+        <div className="container mx-auto px-4 py-20 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Section - Hero Content */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className="text-white"
+            >
+              <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+                List your Property for free & grow your business
+              </h1>
+              <p className="text-xl md:text-2xl mb-8 text-blue-100">
+                Partner with Second Home
+              </p>
+              <div className="flex items-center gap-6 mb-8">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-6 h-6" />
+                  <span className="text-lg font-semibold">Second Home</span>
+                </div>
+              </div>
+              <p className="text-lg text-gray-300 mb-8">
+                Join a community of 1,00,000+ listings
+              </p>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-3 gap-4 mt-12">
+                {stats.map((stat, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + idx * 0.1 }}
+                    className="bg-white/10 backdrop-blur-md rounded-lg p-4 border border-white/20"
+                  >
+                    <div className="text-3xl font-bold text-orange-400 mb-1">{stat.value}</div>
+                    <div className="text-sm font-semibold text-white mb-1">{stat.label}</div>
+                    <div className="text-xs text-gray-300">{stat.description}</div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Right Section - Sign In/Sign Up Card */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className="w-full max-w-md mx-auto"
+            >
+              <Card className="bg-slate-800/95 backdrop-blur-xl border-slate-700/50 shadow-2xl">
+                <CardContent className="p-8">
+                  {/* Toggle Buttons */}
+                  <div className="flex gap-2 mb-6 border-b border-slate-700">
+                    <button
+                      onClick={() => {
+                        setIsSignIn(true)
+                        setOtpSent(false)
+                      }}
+                      className={`flex-1 py-3 text-sm font-semibold transition-all ${
+                        isSignIn
+                          ? "text-orange-400 border-b-2 border-orange-400"
+                          : "text-gray-400 hover:text-gray-300"
+                      }`}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsSignIn(false)
+                        setOtpSent(false)
+                        signUpForm.reset()
+                      }}
+                      className={`flex-1 py-3 text-sm font-semibold transition-all ${
+                        !isSignIn
+                          ? "text-orange-400 border-b-2 border-orange-400"
+                          : "text-gray-400 hover:text-gray-300"
+                      }`}
+                    >
+                      Create Account
+                    </button>
+                  </div>
+
+                  {isSignIn ? (
+                    // Sign In Form
+                    <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-5">
+                      <div>
+                        <h2 className="text-2xl font-bold text-white mb-2">Sign in to manage your property</h2>
+                        <p className="text-sm text-gray-400">Welcome back! Please enter your details.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Username/Email address
+                          </label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Input
+                              {...signInForm.register("email")}
+                              type="email"
+                              placeholder="Enter your email"
+                              className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-500 focus:border-orange-400"
+                            />
+                          </div>
+                          {signInForm.formState.errors.email && (
+                            <p className="text-red-400 text-xs mt-1">
+                              {signInForm.formState.errors.email.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Input
+                              {...signInForm.register("password")}
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Enter your password"
+                              className="pl-10 pr-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-500 focus:border-orange-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                            >
+                              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                          </div>
+                          {signInForm.formState.errors.password && (
+                            <p className="text-red-400 text-xs mt-1">
+                              {signInForm.formState.errors.password.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 text-sm text-gray-400">
+                          <input type="checkbox" className="rounded border-slate-600" />
+                          Remember me
+                        </label>
+                        <button type="button" className="text-sm text-orange-400 hover:text-orange-300">
+                          Forgot your password?
+                        </button>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 h-auto"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Signing in...
+                          </>
+                        ) : (
+                          "Sign in"
+                        )}
+                      </Button>
+                    </form>
+                  ) : (
+                    // Sign Up Form
+                    <form onSubmit={signUpForm.handleSubmit(handleSignUp)} className="space-y-5">
+                      <div>
+                        <h2 className="text-2xl font-bold text-white mb-2">Create your property owner account</h2>
+                        <p className="text-sm text-gray-400">Join Second Home and start listing your properties today.</p>
+                        <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                          <p className="text-xs text-orange-300">
+                            💡 <strong>Already have an account?</strong> Use your existing email to upgrade to property owner!
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Input
+                              {...signUpForm.register("name")}
+                              placeholder="Enter your full name"
+                              className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-500 focus:border-orange-400"
+                            />
+                          </div>
+                          {signUpForm.formState.errors.name && (
+                            <p className="text-red-400 text-xs mt-1">
+                              {signUpForm.formState.errors.name.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">Email address</label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Input
+                              {...signUpForm.register("email")}
+                              type="email"
+                              placeholder="Enter your email"
+                              className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-500 focus:border-orange-400"
+                            />
+                          </div>
+                          {signUpForm.formState.errors.email && (
+                            <p className="text-red-400 text-xs mt-1">
+                              {signUpForm.formState.errors.email.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Input
+                              {...signUpForm.register("phone")}
+                              type="tel"
+                              placeholder="Enter your phone number"
+                              className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-500 focus:border-orange-400"
+                            />
+                          </div>
+                          {signUpForm.formState.errors.phone && (
+                            <p className="text-red-400 text-xs mt-1">
+                              {signUpForm.formState.errors.phone.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {!otpSent && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <Input
+                                  {...signUpForm.register("password")}
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Create a password"
+                                  className="pl-10 pr-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-500 focus:border-orange-400"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                                >
+                                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                              </div>
+                              {signUpForm.formState.errors.password && (
+                                <p className="text-red-400 text-xs mt-1">
+                                  {signUpForm.formState.errors.password.message}
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-2">Confirm Password</label>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <Input
+                                  {...signUpForm.register("confirmPassword")}
+                                  type="password"
+                                  placeholder="Confirm your password"
+                                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-500 focus:border-orange-400"
+                                />
+                              </div>
+                              {signUpForm.formState.errors.confirmPassword && (
+                                <p className="text-red-400 text-xs mt-1">
+                                  {signUpForm.formState.errors.confirmPassword.message}
+                                </p>
+                              )}
+                            </div>
+                          </>
+                        )}
+
+                        {otpSent && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">Enter OTP</label>
+                            <div className="relative">
+                              <Input
+                                {...signUpForm.register("otp")}
+                                type="text"
+                                maxLength={6}
+                                placeholder="Enter 6-digit OTP"
+                                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-500 focus:border-orange-400 text-center text-2xl tracking-widest"
+                              />
+                            </div>
+                            {signUpForm.formState.errors.otp && (
+                              <p className="text-red-400 text-xs mt-1">
+                                {signUpForm.formState.errors.otp.message}
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const email = signUpForm.getValues("email")
+                                sendOTP(email)
+                              }}
+                              className="text-sm text-orange-400 hover:text-orange-300 mt-2"
+                            >
+                              Resend OTP
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 h-auto"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {otpSent ? "Verifying..." : "Sending OTP..."}
+                          </>
+                        ) : otpSent ? (
+                          "Verify & Register"
+                        ) : (
+                          "Send OTP & Continue"
+                        )}
+                      </Button>
+
+                      {!otpSent && (
+                        <p className="text-xs text-gray-400 text-center">
+                          By continuing, you agree to Second Home's Terms of Service and Privacy Policy
+                        </p>
+                      )}
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
