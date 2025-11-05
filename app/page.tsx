@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import {
   Search,
   Home,
@@ -35,6 +36,7 @@ import { SmartLocationInput } from "@/components/smart-location-input"
 export default function Page() {
   const router = useRouter()
   const { toast } = useToast()
+  const { data: session, status } = useSession()
   const [stats, setStats] = useState({ properties: 0, cities: 0, students: 0 })
   const [selectedService, setSelectedService] = useState("pgs")
   const [location, setLocation] = useState("")
@@ -43,6 +45,7 @@ export default function Page() {
   const [featuredProperties, setFeaturedProperties] = useState<any[]>([])
   const [offers, setOffers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const isAuthenticated = status === "authenticated"
 
   // Fetch real data
   useEffect(() => {
@@ -224,8 +227,55 @@ export default function Page() {
             </p>
           </div>
 
-          {/* Search Card */}
-          <div className="max-w-5xl mx-auto">
+          {/* Non-authenticated users: Show Get Started */}
+          {!isAuthenticated && (
+            <div className="max-w-2xl mx-auto text-center space-y-6">
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  🎓 Welcome to Second Home
+                </h2>
+                <p className="text-lg text-gray-700 mb-6">
+                  Join thousands of students finding their perfect accommodation. 
+                  Sign up now to search properties, save favorites, and book your next home!
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button
+                    onClick={() => router.push("/signup")}
+                    size="lg"
+                    className="bg-orange-500 hover:bg-orange-600 text-white text-lg px-8 py-6 h-auto"
+                  >
+                    Get Started - It's Free! 
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                  <Button
+                    onClick={() => router.push("/login")}
+                    size="lg"
+                    variant="outline"
+                    className="bg-white text-gray-900 text-lg px-8 py-6 h-auto border-2 hover:bg-gray-50"
+                  >
+                    Already Have Account?
+                  </Button>
+                </div>
+                <div className="mt-6 grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-3xl font-bold text-orange-600">{stats.properties}+</div>
+                    <div className="text-sm text-gray-600">Properties</div>
+                  </div>
+                  <div>
+                    <div className="text-3xl font-bold text-orange-600">{stats.cities}+</div>
+                    <div className="text-sm text-gray-600">Cities</div>
+                  </div>
+                  <div>
+                    <div className="text-3xl font-bold text-orange-600">{stats.students}+</div>
+                    <div className="text-sm text-gray-600">Students</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Authenticated users: Show Search Card */}
+          {isAuthenticated && <div className="max-w-5xl mx-auto">
             <Card className="border-0 shadow-2xl">
               <CardContent className="p-6 md:p-8">
                 {/* Service Tabs */}
@@ -322,12 +372,12 @@ export default function Page() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </div>}
         </div>
       </section>
 
-      {/* Stats Bar */}
-      <section className="bg-orange-50 border-b border-orange-100 py-8">
+      {/* Stats Bar - Only show for authenticated users */}
+      {isAuthenticated && <section className="bg-orange-50 border-b border-orange-100 py-8">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8">
             <div className="text-center">
@@ -350,10 +400,10 @@ export default function Page() {
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
-      {/* Browse by Category - With Real Images */}
-      <section className="py-16 bg-white">
+      {/* Browse by Category - With Real Images - Only show for authenticated users */}
+      {isAuthenticated && <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-3xl font-bold text-gray-900 mb-10">
@@ -384,7 +434,7 @@ export default function Page() {
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* Why Choose Us - With Image */}
       <section className="py-16 bg-gray-50">
@@ -451,8 +501,8 @@ export default function Page() {
         </div>
       </section>
 
-      {/* Featured Properties - Real Data */}
-      {featuredProperties.length > 0 && (
+      {/* Featured Properties - Real Data - Only show for authenticated users */}
+      {isAuthenticated && featuredProperties.length > 0 && (
         <section className="py-16 bg-white">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-between mb-10">
@@ -534,8 +584,8 @@ export default function Page() {
         </section>
       )}
 
-      {/* Offers Section - Real Data */}
-      {offers.length > 0 && (
+      {/* Offers Section - Real Data - Only show for authenticated users */}
+      {isAuthenticated && offers.length > 0 && (
         <section className="py-16 bg-gray-50">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold text-gray-900 mb-10">

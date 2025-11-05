@@ -36,6 +36,10 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [step, setStep] = useState(1) // 1: Email form, 2: OTP verification
+  const [otp, setOtp] = useState("")
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [formData, setFormData] = useState<any>(null)
 
   // Redirect if already logged in
   useEffect(() => {
@@ -61,12 +65,128 @@ export default function SignupPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
+    setFormData(values)
+    
     try {
-      await register(values.name, values.email, values.password).catch(() => {})
+      // Step 1: Send OTP to email
+      const response = await fetch("/api/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          email: values.email,
+          type: "registration" 
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "OTP Sent! 📧",
+          description: `Verification code sent to ${values.email}`,
+        })
+        setStep(2) // Move to OTP verification step
+      } else {
+        throw new Error(data.error || "Failed to send OTP")
+      }
     } catch (error) {
-      // Errors handled in auth provider
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send OTP",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function verifyOTPAndRegister() {
+    if (otp.length !== 6) {
+      toast({
+        title: "Invalid OTP",
+        description: "Please enter a 6-digit code",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setOtpLoading(true)
+    
+    try {
+      const response = await fetch("/api/auth/register-with-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          otp,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Success! 🎉",
+          description: "Account created successfully. Please login.",
+        })
+        
+        // Auto-login after registration
+        const result = await signIn("credentials", {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+        })
+
+        if (result?.ok) {
+          router.push("/")
+        } else {
+          router.push("/login")
+        }
+      } else {
+        throw new Error(data.error || "Registration failed")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Registration failed",
+        variant: "destructive",
+      })
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  async function resendOTP() {
+    if (!formData?.email) return
+    
+    setOtpLoading(true)
+    try {
+      const response = await fetch("/api/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          email: formData.email,
+          type: "registration" 
+        }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "OTP Resent! 📧",
+          description: "New verification code sent to your email",
+        })
+        setOtp("") // Clear OTP input
+      } else {
+        throw new Error("Failed to resend OTP")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to resend OTP",
+        variant: "destructive",
+      })
+    } finally {
+      setOtpLoading(false)
     }
   }
 
@@ -144,12 +264,76 @@ export default function SignupPage() {
               </Link>
 
               <div className="space-y-2">
-                <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
-                <p className="text-gray-600">Sign up to start finding your perfect home</p>
+                <h2 className="text-3xl font-bold text-gray-900">
+                  {step === 1 ? "Create Account" : "Verify Email"}
+                </h2>
+                <p className="text-gray-600">
+                  {step === 1 
+                    ? "Sign up to start finding your perfect home"
+                    : `Enter the 6-digit code sent to ${formData?.email}`
+                  }
+                </p>
               </div>
 
-              {/* Signup Form */}
-              <Form {...form}>
+              {/* Step 2: OTP Verification */}
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-900">Verification Code</label>
+                    <Input
+                      type="text"
+                      placeholder="Enter 6-digit OTP"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      maxLength={6}
+                      className="text-center text-2xl tracking-widest font-mono h-14 border-2"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={verifyOTPAndRegister}
+                    disabled={otpLoading || otp.length !== 6}
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12"
+                  >
+                    {otpLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        Verify & Create Account
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="text-center space-y-2">
+                    <button
+                      onClick={resendOTP}
+                      disabled={otpLoading}
+                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                    >
+                      {otpLoading ? "Sending..." : "Resend OTP"}
+                    </button>
+                    <p className="text-xs text-gray-500">OTP valid for 10 minutes</p>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setStep(1)
+                      setOtp("")
+                    }}
+                    className="w-full h-12"
+                  >
+                    Back to Registration
+                  </Button>
+                </div>
+              )}
+
+              {/* Step 1: Signup Form */}
+              {step === 1 && <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
@@ -286,7 +470,7 @@ export default function SignupPage() {
                     </Link>
                   </p>
                 </form>
-              </Form>
+              </Form>}
 
               <div className="text-center space-y-2">
                 <p className="text-sm text-gray-600">
