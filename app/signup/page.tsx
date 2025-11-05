@@ -68,7 +68,31 @@ export default function SignupPage() {
     setFormData(values)
     
     try {
-      // Step 1: Send OTP to email
+      // Step 1: Check if email already exists
+      const checkResponse = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: values.email }),
+      })
+
+      const checkData = await checkResponse.json()
+
+      if (checkResponse.status === 409) {
+        // Email already exists
+        toast({
+          title: "Account Exists! 🚫",
+          description: checkData.message || "This email is already registered. Please login instead.",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
+      }
+
+      if (!checkResponse.ok) {
+        throw new Error(checkData.error || "Failed to verify email")
+      }
+
+      // Step 2: Email is available, send OTP
       const response = await fetch("/api/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,7 +116,7 @@ export default function SignupPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send OTP",
+        description: error instanceof Error ? error.message : "Failed to process signup",
         variant: "destructive",
       })
     } finally {
