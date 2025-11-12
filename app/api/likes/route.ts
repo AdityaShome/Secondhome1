@@ -3,16 +3,19 @@ import { connectToDatabase } from "@/lib/mongodb"
 import { Like } from "@/models/like"
 import { Property } from "@/models/property"
 import { Mess } from "@/models/mess"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth-options"
+import { getSession } from "@/lib/get-session"
 import mongoose from "mongoose"
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getSession()
 
     if (!session || !session.user || !session.user.id) {
-      console.error("❌ Unauthorized: No session or user ID")
+      console.error("❌ Unauthorized: No session or user ID", {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        hasUserId: !!session?.user?.id,
+      })
       return NextResponse.json({ error: "Unauthorized. Please log in to like properties." }, { status: 401 })
     }
 
@@ -163,7 +166,7 @@ export async function GET(req: Request) {
 
     // If requesting user's own liked items
     if (getMyLikes) {
-      const session = await getServerSession(authOptions)
+      const session = await getSession()
 
       if (!session || !session.user || !session.user.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

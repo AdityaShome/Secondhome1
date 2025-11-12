@@ -1,16 +1,14 @@
 import type { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
+import FacebookProvider from "next-auth/providers/facebook"
 import { connectToDatabase } from "@/lib/mongodb"
 import { compare } from "bcryptjs"
 import { getUserModel } from "@/models/user"
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    }),
+    // Email/Password Login (always available)
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -22,56 +20,121 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email and password are required")
         }
 
-        // Skip DB connection if MONGODB_URI is not defined (during build)
-        if (!process.env.MONGODB_URI) {
-          console.warn("MONGODB_URI not defined, skipping database connection")
-          return null
-        }
+        // Normalize email to lowercase for consistent lookup
+        const normalizedEmail = credentials.email.toLowerCase().trim()
 
         try {
-          await connectToDatabase()
-          const User = await getUserModel()
+          console.log("🔌 Connecting to MongoDB...")
+          
+          // Explicitly connect to MongoDB first with timeout
+          await Promise.race([
+            connectToDatabase(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error("Database connection timeout")), 10000)
+            )
+          ])
+          console.log("✅ MongoDB connected")
 
-          const user = await User.findOne({ email: credentials.email })
+          // Get User model
+          const User = await getUserModel()
+          console.log("✅ User model obtained")
+
+          // Find user (emails are stored normalized)
+          console.log(`🔍 Searching for user with email: ${normalizedEmail}`)
+          const user = await User.findOne({ 
+            email: normalizedEmail
+          }).lean()
 
           if (!user) {
-            throw new Error("No user found with this email")
+            console.error(`❌ No user found with email: ${normalizedEmail}`)
+            throw new Error("Invalid email or password")
           }
 
+          // Check if user has a password (OAuth users might not have one)
+          if (!user.password) {
+            console.error("❌ User account has no password (likely OAuth account)")
+            throw new Error("This account was created with social login. Please use Google or Facebook to sign in.")
+          }
+
+          console.log("✅ User found, validating password...")
+          
+          // Ensure password is a string
+          if (typeof user.password !== "string" || user.password.length === 0) {
+            console.error("❌ User password is invalid or missing")
+            throw new Error("Invalid email or password")
+          }
+          
           const isPasswordValid = await compare(credentials.password, user.password)
 
           if (!isPasswordValid) {
-            throw new Error("Invalid password")
+            console.error("❌ Invalid password")
+            throw new Error("Invalid email or password")
           }
 
+          console.log("✅ Authentication successful!")
           return {
             id: user._id.toString(),
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            role: user.role,
+            name: user.name || "",
+            email: user.email || "",
+            image: user.image || null,
+            role: user.role || "user",
           }
-        } catch (error) {
-          console.error("Authentication error:", error)
-          return null
+        } catch (error: any) {
+          // Log detailed error for debugging
+          console.error("❌ Authentication error:", {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+            email: normalizedEmail,
+          })
+          // Re-throw to let NextAuth handle it properly
+          throw error
         }
       },
     }),
+    // Add Google provider only if credentials are available
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
+    // Add Facebook provider only if credentials are available
+    ...(process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET
+      ? [
+          FacebookProvider({
+            clientId: process.env.FACEBOOK_CLIENT_ID,
+            clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+          }),
+        ]
+      : []),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.role = user.role
+      try {
+        if (user) {
+          token.id = user.id
+          token.role = user.role || "user"
+        }
+        return token
+      } catch (error) {
+        console.error("JWT callback error:", error)
+        return token
       }
-      return token
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
+      try {
+        if (token && session?.user) {
+          session.user.id = token.id as string
+          session.user.role = (token.role as string) || "user"
+        }
+        return session
+      } catch (error) {
+        console.error("Session callback error:", error)
+        return session
       }
-      return session
     },
   },
   pages: {
@@ -82,5 +145,36 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
+  trustHost: true, // Trust the host header in production
 }
