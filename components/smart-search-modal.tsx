@@ -15,10 +15,7 @@ import {
   Mic,
   MicOff,
   Sparkles,
-  Building2,
-  UtensilsCrossed,
   GraduationCap,
-  Filter,
   ArrowRight,
   Loader2,
 } from "lucide-react"
@@ -372,34 +369,6 @@ export function SmartSearchModal({ isOpen, onClose }: SmartSearchModalProps) {
                 </div>
               </div>
 
-              {/* Quick Filters */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Filter className="w-4 h-4 text-gray-500" />
-                  <h3 className="font-semibold text-gray-700">Browse by Category</h3>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { icon: Building2, label: "PGs & Flats", href: "/listings?type=PG" },
-                    { icon: Building2, label: "Flats", href: "/listings?type=Flat" },
-                    { icon: UtensilsCrossed, label: "Messes", href: "/messes" },
-                    { icon: GraduationCap, label: "Near College", href: "/listings" },
-                  ].map((item, idx) => (
-                    <Button
-                      key={idx}
-                      variant="outline"
-                      onClick={() => {
-                        router.push(item.href)
-                        onClose()
-                      }}
-                      className="flex flex-col items-center gap-2 h-20 hover:bg-purple-50 hover:border-purple-300"
-                    >
-                      <item.icon className="w-5 h-5 text-purple-600" />
-                      <span className="text-xs">{item.label}</span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
             </div>
           ) : isLoading ? (
             <div className="flex items-center justify-center py-12">
