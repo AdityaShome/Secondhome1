@@ -2,11 +2,12 @@ import { NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
 import { Property } from "@/models/property"
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectToDatabase()
 
-    const property = await Property.findById(params.id)
+    const { id } = await params
+    const property = await Property.findById(id)
 
     if (!property) {
       return NextResponse.json(
