@@ -26,6 +26,7 @@ import {
   Info,
   Mail,
   ChevronDown,
+  Shield,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
@@ -129,6 +130,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/listings", label: "PGs & Flats", icon: Building2 },
+    { href: "/verified", label: "Verified", icon: Shield },
     { href: "/messes", label: "Messes", icon: UtensilsCrossed },
     { href: "/map", label: "Map View", icon: MapPin },
     { href: "/about", label: "About", icon: Info },

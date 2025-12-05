@@ -25,6 +25,8 @@ import {
   X,
   ArrowLeft,
   Sparkles,
+  Video,
+  CheckCircle2,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
@@ -37,6 +39,7 @@ import { LikeButton } from "@/components/like-button"
 import { ShareModal } from "@/components/share-modal"
 import { ReviewForm } from "@/components/review-form"
 import { ReviewsList } from "@/components/reviews-list"
+import { WhatsAppChatButton, WhatsAppScheduleButton } from "@/components/whatsapp-chat-button"
 
 interface Property {
   _id: string
@@ -52,6 +55,14 @@ interface Property {
   amenities: string[]
   type: string
   gender: string
+  verificationStatus?: "pending" | "verified" | "rejected"
+  executiveVisit?: {
+    checks?: {
+      wifiTested?: boolean
+      wifiSpeed?: string
+      rawVideoCheck?: boolean
+    }
+  }
   distance?: {
     college: number
     hospital: number
@@ -238,13 +249,25 @@ export default function ListingDetailPage() {
                 </div>
               </div>
 
-        {/* Property Badge */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10">
+        {/* Property Badges */}
+        <div className="absolute top-6 left-6 z-10 flex gap-2 flex-wrap">
+          {property.verificationStatus === "verified" && (
+            <div className="relative">
+              <Image
+                src="/sechome_verification.png"
+                alt="Verified by Second Home"
+                width={120}
+                height={120}
+                className="object-contain drop-shadow-lg"
+                priority
+              />
+            </div>
+          )}
           <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 text-sm font-semibold shadow-lg">
             <Sparkles className="w-4 h-4 mr-1" />
             {property.type}
           </Badge>
-                </div>
+        </div>
 
         {/* Image Thumbnails */}
         {property.images && property.images.length > 1 && (
@@ -286,6 +309,29 @@ export default function ListingDetailPage() {
                     <MapPin className="w-5 h-5 text-purple-600" />
                     <span className="text-base">{property.location}</span>
                   </div>
+                  {/* Verification Details */}
+                  {property.verificationStatus === "verified" && property.executiveVisit?.checks && (
+                    <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <span className="font-semibold text-green-900">Verified by Second Home</span>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        {property.executiveVisit.checks.wifiTested && property.executiveVisit.checks.wifiSpeed && (
+                          <div className="flex items-center gap-1">
+                            <Wifi className="h-4 w-4 text-green-600" />
+                            <span className="text-green-700">WiFi Tested: {property.executiveVisit.checks.wifiSpeed}</span>
+                          </div>
+                        )}
+                        {property.executiveVisit.checks.rawVideoCheck && (
+                          <div className="flex items-center gap-1">
+                            <Video className="h-4 w-4 text-green-600" />
+                            <span className="text-green-700">Raw Video Checked</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
                       <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
@@ -475,15 +521,12 @@ export default function ListingDetailPage() {
                     )}
                   </Button>
                   
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full border-2 border-purple-600 text-purple-600 hover:bg-purple-50 font-semibold rounded-xl"
-                    onClick={() => setIsScheduleVisitModalOpen(true)}
-                  >
-                    <Clock className="mr-2 h-5 w-5" />
-                    Schedule Visit
-                  </Button>
+                  <WhatsAppScheduleButton
+                    propertyId={property._id}
+                    propertyTitle={property.title}
+                    ownerPhone={property.owner?.phone}
+                    ownerName={property.owner?.name}
+                  />
                   </div>
 
                 {property.owner && (
@@ -501,12 +544,24 @@ export default function ListingDetailPage() {
               </div>
 
                       {property.owner.phone && (
-                        <Button variant="outline" className="w-full justify-start" asChild>
-                          <a href={`tel:${property.owner.phone}`}>
-                            <Phone className="mr-2 h-4 w-4" />
-                            {property.owner.phone}
-                          </a>
-                        </Button>
+                        <>
+                          <WhatsAppChatButton
+                            propertyId={property._id}
+                            propertyTitle={property.title}
+                            ownerPhone={property.owner.phone}
+                            ownerName={property.owner.name}
+                            variant="outline"
+                            size="default"
+                            label="Chat on WhatsApp"
+                            className="w-full"
+                          />
+                          <Button variant="outline" className="w-full justify-start" asChild>
+                            <a href={`tel:${property.owner.phone}`}>
+                              <Phone className="mr-2 h-4 w-4" />
+                              {property.owner.phone}
+                            </a>
+                          </Button>
+                        </>
                       )}
                       
                       {property.owner.email && (

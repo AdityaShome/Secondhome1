@@ -77,7 +77,7 @@ export function SmartLocationInput({
   const fetchSuggestions = async (query: string) => {
     setIsLoading(true)
     try {
-      // First, try smart search with Gemini
+      // First, try smart search with Groq
       const smartResponse = await fetch("/api/smart-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

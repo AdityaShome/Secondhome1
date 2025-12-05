@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import Groq from "groq-sdk"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return NextResponse.json({
         suggestions: [],
         message: "AI features are currently unavailable"
@@ -13,8 +13,6 @@ export async function POST(req: Request) {
     }
 
     const { context, data } = await req.json()
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
 
     let prompt = ""
 
@@ -53,9 +51,12 @@ Return ONLY the beautified description text, no quotes or formatting.`
         return NextResponse.json({ suggestions: [], message: "Invalid context" })
     }
 
-    const result = await model.generateContent(prompt)
-    const response = result.response
-    const text = response.text()
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+    })
+    const text = completion.choices[0]?.message?.content || ""
 
     // Try to parse JSON if applicable
     let suggestions

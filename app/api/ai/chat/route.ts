@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import Groq from "groq-sdk"
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY!
+const GROQ_API_KEY = process.env.GROQ_API_KEY!
 
 export async function POST(req: Request) {
   try {
@@ -11,12 +11,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 })
     }
 
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json({ error: "GEMINI_API_KEY is not set" }, { status: 500 })
+    if (!GROQ_API_KEY) {
+      return NextResponse.json({ error: "GROQ_API_KEY is not set" }, { status: 500 })
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
+    const groq = new Groq({ apiKey: GROQ_API_KEY })
 
     // Build context-aware prompt
     let contextInfo = `You are SecondHome AI, a helpful assistant for students looking for accommodation in India.
@@ -43,9 +42,12 @@ User Question: ${message}
 
 Provide a helpful, concise, and friendly response (2-3 sentences max). Focus on student needs like safety, budget, proximity to colleges, food options, and lifestyle. Be specific about numbers when available.`
 
-    const result = await model.generateContent(prompt)
-    const response = result.response
-    const reply = response.text()
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+    })
+    const reply = completion.choices[0]?.message?.content || ""
 
     return NextResponse.json({ reply })
   } catch (error) {

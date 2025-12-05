@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import Groq from "groq-sdk"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return NextResponse.json({
         verified: false,
         confidence: 0,
@@ -17,13 +17,6 @@ export async function POST(req: Request) {
     }
 
     const propertyData = await req.json()
-
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp",
-      generationConfig: {
-        temperature: 0.3, // Lower temperature for more consistent analysis
-      }
-    })
 
     // Compact verification prompt focusing on key legitimacy indicators
     const prompt = `Analyze this property listing for legitimacy. Score 0-100.
@@ -52,9 +45,12 @@ Return ONLY this JSON:
   "reason": "brief explanation"
 }`
 
-    const result = await model.generateContent(prompt)
-    const response = result.response
-    const text = response.text()
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.3,
+    })
+    const text = completion.choices[0]?.message?.content || ""
 
     // Parse AI response
     let aiAnalysis

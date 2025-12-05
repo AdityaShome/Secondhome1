@@ -30,7 +30,6 @@ import {
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import HowItWorks from "@/components/how-it-works"
-import Testimonials from "@/components/testimonials"
 import { SmartLocationInput } from "@/components/smart-location-input"
 
 export default function Page() {
@@ -639,9 +638,6 @@ export default function Page() {
 
       {/* How It Works */}
       <HowItWorks />
-
-      {/* Testimonials */}
-      <Testimonials />
 
       {/* List Property CTA - With Image */}
       <section 

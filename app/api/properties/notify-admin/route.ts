@@ -11,14 +11,14 @@ export async function POST(req: Request) {
 
     if (!emailUser || !emailPassword) {
       console.log("⚠️ Email credentials not configured. Property saved but notification not sent.")
-      console.log("📧 Admin email would be sent to: srijitd248@gmail.com")
+      console.log("📧 Admin email would be sent to: second.home2k25@gmail.com")
       console.log(`📋 Property: ${propertyTitle} by ${ownerName}`)
       console.log(`🆔 Property ID: ${propertyId}`)
       
       return NextResponse.json({ 
         message: "Property saved successfully. Email notification skipped (credentials not configured)",
         propertyId,
-        adminEmail: "srijitd248@gmail.com"
+        adminEmail: "second.home2k25@gmail.com"
       })
     }
 
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
     const mailOptions = {
       from: `"Second Home" <${emailUser}>`,
-      to: "srijitd248@gmail.com", // Admin email (your email)
+      to: "second.home2k25@gmail.com", // Admin email (your email)
       subject: `🏠 ${aiReview ? (aiReview.score >= 70 ? '✅' : '⚠️') : ''} New Property Listing - ${propertyTitle}`,
       html: `
         <!DOCTYPE html>
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
               </div>
               <div class="footer">
                 <p><strong>Second Home</strong> - Student Accommodation Platform</p>
-                <p>📧 srijitd248@gmail.com | 🌐 secondhome-eight.vercel.app</p>
+                <p>📧 second.home2k25@gmail.com | 🌐 secondhome-eight.vercel.app</p>
                 <p style="font-size: 11px;">This is an automated notification for property listings requiring manual verification.</p>
               </div>
             </div>
@@ -138,25 +138,24 @@ export async function POST(req: Request) {
     // Send email
     await transporter.sendMail(mailOptions)
 
-    console.log("✅ Admin notification email sent to: srijitd248@gmail.com")
+    console.log("✅ Admin notification email sent to: second.home2k25@gmail.com")
     console.log(`📧 Subject: New Property Listing - ${propertyTitle}`)
 
     return NextResponse.json({ 
-      message: "Admin notification sent successfully to srijitd248@gmail.com",
-      adminEmail: "srijitd248@gmail.com",
+      message: "Admin notification sent successfully to second.home2k25@gmail.com",
+      adminEmail: "second.home2k25@gmail.com",
       propertyId
     })
   } catch (error) {
     console.error("❌ Error sending admin notification:", error)
-    console.log("📧 Failed to notify: srijitd248@gmail.com")
-    console.log(`📋 Property: ${propertyTitle} (ID: ${propertyId})`)
+    console.log("📧 Failed to notify: second.home2k25@gmail.com")
     
     return NextResponse.json(
       { 
         error: "Failed to send email notification", 
         details: error instanceof Error ? error.message : "Unknown error",
         note: "Property was saved successfully. Only email notification failed.",
-        adminEmail: "srijitd248@gmail.com"
+        adminEmail: "second.home2k25@gmail.com"
       },
       { status: 500 }
     )

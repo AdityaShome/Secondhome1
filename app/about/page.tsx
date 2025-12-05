@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { motion } from "framer-motion"
-import { Home, Users, Building, MapPin, Star, Shield, Clock, Award } from "lucide-react"
+import { Home, Shield, Award, Users, Clock } from "lucide-react"
 
 export default function AboutPage() {
   return (
@@ -23,7 +23,7 @@ export default function AboutPage() {
               About <span className="text-primary">Second Home</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              We're on a mission to make finding student accommodation simple, transparent, and stress-free.
+              Founded in 2025 by students, for students. We're revolutionizing how students find authentic PGs and flats by eliminating fake properties and bringing transparency to accommodation search.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Button size="lg" className="h-12 px-6" asChild>
@@ -51,21 +51,19 @@ export default function AboutPage() {
               <h2 className="text-3xl font-bold mb-6">Our Story</h2>
               <div className="space-y-4 text-muted-foreground">
                 <p>
-                  Second Home was founded in 2023 by a group of former students who experienced firsthand the challenges
-                  of finding good accommodation near their colleges.
+                  Second Home was founded in <strong className="text-foreground">2025</strong> by three passionate students who faced the same frustrating problem: finding genuine accommodation near their colleges.
                 </p>
                 <p>
-                  After struggling with unreliable brokers, hidden fees, and misleading listings, we decided to create a
-                  platform that brings transparency and trust to student accommodation.
+                  As students from <strong className="text-foreground">Dayananda Sagar College of Engineering (DSCE)</strong> and <strong className="text-foreground">IIIT Hyderabad</strong>, we experienced the nightmare of dealing with fake property listings, unreliable brokers, and misleading information when searching for PGs and flats.
                 </p>
                 <p>
-                  What started as a small project to help friends find PGs and flats near Bangalore colleges has now
-                  grown into a comprehensive platform serving thousands of students across the city.
+                  Fed up with the rampant fraud in the student accommodation market, we decided to build a solution. What started as a mission to solve our own problem has become a platform that verifies every property, eliminates fake listings, and ensures students can find authentic accommodations with complete transparency.
                 </p>
                 <p>
-                  Our mission is simple: to help every student find their perfect "second home" - a place that's not
-                  just a room to stay in, but a comfortable, safe, and welcoming environment where they can thrive
-                  during their college years.
+                  We believe every student deserves a safe, comfortable, and genuine "second home" - not just a room, but a place where they can focus on their studies and build their future. That's why we verify every property, verify every owner, and maintain the highest standards of authenticity.
+                </p>
+                <p className="pt-4">
+                  <strong className="text-foreground">Built by students, for students.</strong> We understand your struggles because we've been there. Join us in revolutionizing how students find their perfect accommodation.
                 </p>
               </div>
             </motion.div>
@@ -76,22 +74,25 @@ export default function AboutPage() {
               transition={{ duration: 0.5 }}
               viewport={{ once: true }}
             >
-              <div className="relative h-[400px] rounded-2xl overflow-hidden shadow-xl">
+              <div className="relative w-full min-h-[500px] rounded-2xl overflow-hidden shadow-xl bg-gray-50 flex items-center justify-center">
                 <Image
-                  src="/placeholder.svg?height=800&width=600"
-                  alt="Second Home team"
-                  fill
-                  className="object-cover"
+                  src="/second_home_about.png"
+                  alt="Second Home - Student accommodation platform"
+                  width={800}
+                  height={600}
+                  className="object-contain w-full h-auto"
+                  priority
+                  sizes="(max-width: 768px) 100vw, 50vw"
                 />
               </div>
-              <div className="absolute -bottom-6 -right-6 bg-white p-4 rounded-lg shadow-lg">
+              <div className="absolute -bottom-6 -right-6 bg-white p-4 rounded-lg shadow-lg z-10">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 p-3 rounded-full">
                     <Home className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Helping students since 2023</p>
-                    <p className="text-xs text-muted-foreground">5000+ accommodations listed</p>
+                    <p className="text-sm font-medium">Helping students since 2025</p>
+                    <p className="text-xs text-muted-foreground">Verified accommodations only</p>
                   </div>
                 </div>
               </div>
@@ -110,34 +111,34 @@ export default function AboutPage() {
             transition={{ duration: 0.5 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl font-bold mb-4">Our Values</h2>
-            <p className="text-lg text-muted-foreground">The principles that guide everything we do at Second Home</p>
+            <h2 className="text-3xl font-bold mb-4">Our Mission & Values</h2>
+            <p className="text-lg text-muted-foreground">Solving the real problems students face when searching for accommodation</p>
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
                 icon: Shield,
-                title: "Trust & Safety",
+                title: "Zero Fake Properties",
                 description:
-                  "We verify every property and owner to ensure students can make decisions with confidence.",
+                  "Every property is verified using AI-powered authentication. We eliminate fake listings so you only see real, legitimate accommodations.",
               },
               {
                 icon: Users,
-                title: "Community",
+                title: "Built by Students",
                 description:
-                  "We believe in creating connections and fostering a sense of belonging for students away from home.",
+                  "Founded by students who faced the same challenges. We understand your struggles because we've been through them ourselves.",
               },
               {
                 icon: Award,
-                title: "Quality",
+                title: "AI Verification",
                 description:
-                  "We maintain high standards for all listings and continuously improve our platform based on feedback.",
+                  "Advanced AI technology analyzes every property listing for authenticity, pricing, and safety before it goes live on our platform.",
               },
               {
                 icon: Clock,
-                title: "Convenience",
-                description: "We streamline the accommodation search process to save students time and reduce stress.",
+                title: "Transparent Process",
+                description: "No hidden fees, no misleading information. We provide complete transparency so students can make informed decisions with confidence.",
               },
             ].map((value, index) => (
               <motion.div
@@ -176,31 +177,25 @@ export default function AboutPage() {
             <p className="text-lg text-muted-foreground">The passionate people behind Second Home</p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                name: "Rahul Sharma",
-                role: "Founder & CEO",
-                image: "/placeholder.svg?height=300&width=300",
-                bio: "Former engineering student who experienced the challenges of finding good accommodation firsthand.",
+                name: "Srijit Das",
+                role: "Founder",
+                image: "/Srijit_secondhome.jpeg",
+                bio: "Dayananda Sagar College of Engineering",
               },
               {
-                name: "Priya Patel",
-                role: "COO",
-                image: "/placeholder.svg?height=300&width=300",
-                bio: "Operations expert with a background in hospitality and a passion for creating exceptional user experiences.",
+                name: "Kausheya Roy",
+                role: "Co-founder",
+                image: "/Kausheya_secondhome.jpeg",
+                bio: "IIIT Hyderabad",
               },
               {
-                name: "Arjun Reddy",
-                role: "CTO",
-                image: "/placeholder.svg?height=300&width=300",
-                bio: "Tech enthusiast who built the first version of Second Home during his final year of computer science.",
-              },
-              {
-                name: "Neha Singh",
-                role: "Head of Community",
-                image: "/placeholder.svg?height=300&width=300",
-                bio: "Former student counselor who ensures Second Home meets the real needs of students.",
+                name: "Aditya Shome",
+                role: "Co-founder",
+                image: "/Aditya_secondhome.jpg",
+                bio: "Dayananda Sagar College of Engineering",
               },
             ].map((member, index) => (
               <motion.div
@@ -212,8 +207,14 @@ export default function AboutPage() {
               >
                 <Card className="h-full hover:shadow-md transition-shadow duration-200 overflow-hidden">
                   <CardContent className="p-0">
-                    <div className="relative h-64 w-full">
-                      <Image src={member.image || "/placeholder.svg"} alt={member.name} fill className="object-cover" />
+                    <div className="relative w-full h-80 bg-gray-100 overflow-hidden">
+                      <Image 
+                        src={member.image || "/placeholder.svg"} 
+                        alt={member.name} 
+                        fill 
+                        className="object-contain object-center"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
                     </div>
                     <div className="p-6">
                       <h3 className="text-xl font-bold mb-1">{member.name}</h3>
@@ -222,35 +223,6 @@ export default function AboutPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-20 bg-primary text-white">
-        <div className="container px-4 mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: "5,000+", label: "Accommodations", icon: Building },
-              { value: "20,000+", label: "Happy Students", icon: Users },
-              { value: "50+", label: "Locations", icon: MapPin },
-              { value: "4.8/5", label: "Average Rating", icon: Star },
-            ].map((stat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="flex flex-col items-center"
-              >
-                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4">
-                  <stat.icon className="w-8 h-8" />
-                </div>
-                <div className="text-4xl font-bold mb-2">{stat.value}</div>
-                <div className="text-primary-foreground/80">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -269,7 +241,7 @@ export default function AboutPage() {
           >
             <h2 className="text-3xl font-bold mb-6">Ready to Find Your Second Home?</h2>
             <p className="text-lg text-muted-foreground mb-8">
-              Join thousands of students who found their perfect accommodation with us.
+              Join us in revolutionizing student accommodation. Find verified, authentic PGs and flats without the hassle of fake properties.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Button size="lg" className="h-12 px-8" asChild>

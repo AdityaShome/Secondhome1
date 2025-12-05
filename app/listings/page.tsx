@@ -234,11 +234,18 @@ export default function ListingsPage() {
 
     // Verified filter
     if (filters.verified) {
-      filtered = filtered.filter((p) => p.approvalMethod === "AI")
+      filtered = filtered.filter((p) => p.verificationStatus === "verified")
     }
 
-    // Sorting
+    // Sorting with verified properties priority (Business Model - Max Recommendations)
     filtered.sort((a, b) => {
+      // Always prioritize verified properties first
+      const aVerified = a.verificationStatus === "verified" ? 1 : 0
+      const bVerified = b.verificationStatus === "verified" ? 1 : 0
+      if (aVerified !== bVerified) {
+        return bVerified - aVerified
+      }
+
       switch (sortBy) {
         case "price-low":
           return (a.price || 0) - (b.price || 0)
@@ -547,8 +554,8 @@ export default function ListingsPage() {
                       }
                     />
                     <Label htmlFor="verified" className="cursor-pointer flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-purple-600" />
-                      <span>AI Verified Only</span>
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>Verified Properties Only</span>
                     </Label>
                   </div>
 
@@ -712,10 +719,22 @@ function PropertyCard({
                 {property.gender}
               </Badge>
             )}
-            {property.approvalMethod === "AI" && (
+            {property.verificationStatus === "verified" && (
+              <Badge className="bg-green-600/95 text-white backdrop-blur border-2 border-white">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Verified
+              </Badge>
+            )}
+            {property.verificationStatus === "pending" && (
+              <Badge className="bg-yellow-500/95 text-white backdrop-blur">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Verification Pending
+              </Badge>
+            )}
+            {property.approvalMethod === "AI" && !property.isVerified && (
               <Badge className="bg-purple-500/95 text-white backdrop-blur">
                 <Sparkles className="w-3 h-3 mr-1" />
-                AI Verified
+                AI Reviewed
               </Badge>
             )}
           </div>

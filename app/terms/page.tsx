@@ -149,7 +149,7 @@ export default function TermsPage() {
             <h2 className="text-xl font-bold mt-8 mb-4">12. Contact Us</h2>
             <p className="mb-4">If you have any questions about these Terms, please contact us at:</p>
             <p className="mb-4">
-              Email: legal@secondhome.com
+              Email: second.home2k25@gmail.com
               <br />
               Address: 123 Startup Hub, Koramangala, Bangalore, India - 560034
             </p>

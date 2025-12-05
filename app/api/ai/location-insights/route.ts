@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server"
+import Groq from "groq-sdk"
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
     const { location, insights, properties, budget } = body
 
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+    const GROQ_API_KEY = process.env.GROQ_API_KEY
 
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 })
+    if (!GROQ_API_KEY) {
+      return NextResponse.json({ error: "Groq API key not configured" }, { status: 500 })
     }
 
-    // Build detailed prompt for Gemini
+    const groq = new Groq({ apiKey: GROQ_API_KEY })
+
+    // Build detailed prompt for Groq
     const prompt = `You are an AI real estate advisor for students and bachelors in India. Analyze this location and provide insights.
 
 Location: ${location}
@@ -57,30 +60,15 @@ Format your response as JSON with this structure:
 
 Be honest, balanced, and practical. Consider Indian context and student lifestyle.`
 
-    // Call Gemini AI
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    )
+    // Call Groq AI
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+    })
 
-    if (!response.ok) {
-      console.error("Gemini API error:", response.status, response.statusText)
+    if (!completion.choices || completion.choices.length === 0) {
+      console.error("Groq API error: No response")
       
       // Fallback response
       return NextResponse.json({
@@ -101,12 +89,11 @@ Be honest, balanced, and practical. Consider Indian context and student lifestyl
       })
     }
 
-    const data = await response.json()
-    console.log("Gemini AI response:", JSON.stringify(data, null, 2))
+    const aiText = completion.choices[0]?.message?.content || ""
+    console.log("Groq AI response:", aiText)
 
-    // Parse Gemini response
-    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-      const aiText = data.candidates[0].content.parts[0].text
+    // Parse Groq response
+    if (aiText) {
 
       // Try to extract JSON from the response
       const jsonMatch = aiText.match(/\{[\s\S]*\}/)
@@ -115,7 +102,7 @@ Be honest, balanced, and practical. Consider Indian context and student lifestyl
           const parsed = JSON.parse(jsonMatch[0])
           return NextResponse.json(parsed)
         } catch (e) {
-          console.error("Failed to parse JSON from Gemini response:", e)
+          console.error("Failed to parse JSON from Groq response:", e)
         }
       }
 
@@ -129,7 +116,7 @@ Be honest, balanced, and practical. Consider Indian context and student lifestyl
       })
     }
 
-    // Fallback if Gemini fails
+    // Fallback if Groq fails
     return NextResponse.json({
       recommendation: `${location} has a bachelor score of ${insights.scores.overall}/100. ${
         insights.scores.overall >= 80 ? 'Excellent choice for students!' : 

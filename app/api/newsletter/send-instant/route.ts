@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
 import Newsletter from "@/models/newsletter"
 import nodemailer from "nodemailer"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import Groq from "groq-sdk"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,8 +26,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "No subscribers for instant updates" })
     }
 
-    // Generate AI content using Gemini 2.0 Flash
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
+    // Generate AI content using Groq
 
     const prompt = `Create an EXCITING instant alert email for "Second Home" about a new property listing.
 
@@ -49,8 +48,12 @@ Requirements:
 
 Format as HTML with inline CSS (email-safe).`
 
-    const result = await model.generateContent(prompt)
-    const emailContent = result.response.text()
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+    })
+    const emailContent = completion.choices[0]?.message?.content || ""
 
     // Setup email transporter
     const transporter = nodemailer.createTransport({
@@ -120,6 +123,9 @@ Format as HTML with inline CSS (email-safe).`
     )
   }
 }
+
+
+
 
 
 

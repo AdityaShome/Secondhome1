@@ -14,7 +14,12 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata = {
   title: "Second Home",
   description: "Find your perfect accommodation near college",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: '/sechome favicon.png',
+    shortcut: '/sechome favicon.png',
+    apple: '/sechome favicon.png',
+  },
 }
 
 export default function RootLayout({
@@ -25,6 +30,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Favicon */}
+        <link rel="icon" href="/sechome%20favicon.png" type="image/png" />
+        <link rel="shortcut icon" href="/sechome%20favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/sechome%20favicon.png" />
         {/* Include Tailwind CSS from CDN */}
         <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet" />
         {/* Leaflet CSS */}

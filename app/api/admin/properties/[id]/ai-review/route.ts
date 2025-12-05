@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/mongodb"
 import { Property } from "@/models/property"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth-options"
+import Groq from "groq-sdk"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,11 +14,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+    const GROQ_API_KEY = process.env.GROQ_API_KEY
 
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 })
+    if (!GROQ_API_KEY) {
+      return NextResponse.json({ error: "Groq API key not configured" }, { status: 500 })
     }
+
+    const groq = new Groq({ apiKey: GROQ_API_KEY })
 
     await connectToDatabase()
 
@@ -43,20 +46,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       roomTypes: property.roomTypes,
     }
 
-    // Call Gemini API (using gemini-2.0-flash-exp - Gemini 2.0 Flash Experimental!)
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `You are an AI property verification system for a student accommodation platform. Review the following property listing and determine if it's legitimate and suitable for students.
+    // Call Groq API
+    const prompt = `You are an AI property verification system for a student accommodation platform. Review the following property listing and determine if it's legitimate and suitable for students.
 
 Property Details:
 ${JSON.stringify(propertyData, null, 2)}
@@ -86,21 +77,20 @@ Provide your response in JSON format:
   "reason": "Brief reason for the recommendation"
 }
 
-Only approve if confidence is above 80% and no major red flags exist.`,
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    )
+Only approve if confidence is above 80% and no major red flags exist.`
 
-    const aiResponse = await response.json()
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.3,
+    })
     
-    console.log("Gemini AI Response:", JSON.stringify(aiResponse, null, 2))
+    const aiText = completion.choices[0]?.message?.content || ""
     
-    if (!aiResponse.candidates || !aiResponse.candidates[0]) {
-      console.error("Invalid Gemini response structure:", aiResponse)
+    console.log("Groq AI Response:", aiText)
+    
+    if (!aiText) {
+      console.error("Invalid Groq response: empty response")
       
       // Fallback: Auto-approve if AI fails (better than blocking)
       const aiResult = {
@@ -149,9 +139,7 @@ Only approve if confidence is above 80% and no major red flags exist.`,
       })
     }
 
-    const aiText = aiResponse.candidates[0].content.parts[0].text
-    
-    console.log("Gemini AI Text Response:", aiText)
+    console.log("Groq AI Text Response:", aiText)
     
     // Extract JSON from response (AI might include markdown code blocks)
     let aiResult

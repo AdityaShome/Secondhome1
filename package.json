@@ -11,7 +11,6 @@
   "dependencies": {
     "@auth/core": "latest",
     "@emotion/is-prop-valid": "latest",
-    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "latest",
     "@paypal/paypal-server-sdk": "^1.1.0",
     "@radix-ui/react-accordion": "latest",
@@ -52,6 +51,7 @@
     "embla-carousel-react": "latest",
     "framer-motion": "latest",
     "fs": "latest",
+    "groq-sdk": "^0.37.0",
     "input-otp": "latest",
     "leaflet": "latest",
     "lucide-react": "^0.454.0",

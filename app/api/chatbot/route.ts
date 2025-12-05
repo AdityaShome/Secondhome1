@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import Groq from "groq-sdk"
 import { connectToDatabase } from "@/lib/mongodb"
 import { Property } from "@/models/property"
 import { Mess } from "@/models/mess"
@@ -15,10 +15,10 @@ export async function POST(request: Request) {
       })
     }
 
-    // Get Gemini API key
-    const apiKey = process.env.GEMINI_API_KEY
+    // Get Groq API key
+    const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) {
-      console.error("GEMINI_API_KEY not found")
+      console.error("GROQ_API_KEY not found")
       return NextResponse.json({
         response: "Hi! I'm currently learning. You can browse our properties at /listings or contact us at /contact. How can I help you find your perfect accommodation? 😊",
         error: "API key missing",
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       unisex: properties.filter((p: any) => p.gender === "Unisex").length,
     }
 
-    // Create comprehensive context for Gemini
+    // Create comprehensive context for Groq
     const systemContext = `You are SecondHome AI Assistant, a friendly and helpful chatbot for SecondHome - India's #1 student accommodation platform.
 
 YOUR IDENTITY:
@@ -164,17 +164,8 @@ You: "I specialize in student accommodations only! 😊 But I can help you find 
 
 Remember: You are a REAL-TIME assistant with access to actual database. Use the data provided!`
 
-    // Initialize Gemini 2.0 Flash
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp",
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 500,
-      },
-    })
+    // Initialize Groq
+    const groq = new Groq({ apiKey })
 
     // Build conversation history
     const conversationContext = conversationHistory
@@ -193,9 +184,13 @@ USER'S CURRENT MESSAGE: "${message}"
 Respond as SecondHome AI Assistant (keep it under 150 words):`
 
     // Generate response
-    const result = await model.generateContent(fullPrompt)
-    const response = await result.response
-    const text = response.text()
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: fullPrompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 500,
+    })
+    const text = completion.choices[0]?.message?.content || ""
 
     // Log for debugging
     console.log(`Chatbot Query: "${message}" -> Response length: ${text.length} chars`)
@@ -219,4 +214,6 @@ Respond as SecondHome AI Assistant (keep it under 150 words):`
     )
   }
 }
+
+
 

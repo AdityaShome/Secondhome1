@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import Groq from "groq-sdk"
 import { connectToDatabase } from "@/lib/mongodb"
 import { Property } from "@/models/property"
 import { Mess } from "@/models/mess"
@@ -16,17 +16,16 @@ export async function POST(request: Request) {
       })
     }
 
-    // Get Gemini API key
-    const apiKey = process.env.GEMINI_API_KEY
+    // Get Groq API key
+    const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) {
-      console.error("GEMINI_API_KEY not found in environment variables")
+      console.error("GROQ_API_KEY not found in environment variables")
       // Fallback to database-only search
       return await fallbackSearch(query)
     }
 
-    // Initialize Gemini
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" })
+    // Initialize Groq
+    const groq = new Groq({ apiKey })
 
     // Connect to database to get real locations
     await connectToDatabase()
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
       if (mess.city) realCities.add(mess.city)
     })
 
-    // Create context for Gemini
+    // Create context for Groq
     const locationsList = Array.from(realCities).join(", ")
     const collegesList = Array.from(realColleges).slice(0, 20).join(", ")
 
@@ -95,28 +94,31 @@ Return ONLY a JSON object with this exact structure:
 
 IMPORTANT: Only suggest locations that exist in the Available Cities list. Do not make up locations.`
 
-    // Call Gemini API
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    const text = response.text()
+    // Call Groq API
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+    })
+    const text = completion.choices[0]?.message?.content || ""
 
-    // Parse Gemini response
-    let geminiData
+    // Parse Groq response
+    let aiData
     try {
       // Extract JSON from response
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
-        geminiData = JSON.parse(jsonMatch[0])
+        aiData = JSON.parse(jsonMatch[0])
       } else {
         throw new Error("No JSON found in response")
       }
     } catch (parseError) {
-      console.error("Error parsing Gemini response:", parseError)
+      console.error("Error parsing Groq response:", parseError)
       return await fallbackSearch(query)
     }
 
     // Verify suggestions exist in our database
-    const verifiedSuggestions = geminiData.suggestions
+    const verifiedSuggestions = aiData.suggestions
       .filter((suggestion: string) => {
         const suggestionLower = suggestion.toLowerCase()
         return (
@@ -146,17 +148,17 @@ IMPORTANT: Only suggest locations that exist in the Available Cities list. Do no
         return {
           value: suggestion,
           label: suggestion,
-          type: geminiData.intent || "location",
+          type: aiData.intent || "location",
           count,
         }
       })
     )
 
     return NextResponse.json({
-      intent: geminiData.intent,
-      location: geminiData.location,
-      college: geminiData.college,
-      confidence: geminiData.confidence,
+      intent: aiData.intent,
+      location: aiData.location,
+      college: aiData.college,
+      confidence: aiData.confidence,
       suggestions: suggestionsWithCounts.filter((s) => s.count > 0),
     })
   } catch (error) {
@@ -169,7 +171,7 @@ IMPORTANT: Only suggest locations that exist in the Available Cities list. Do no
   }
 }
 
-// Fallback search without Gemini
+// Fallback search without Groq
 async function fallbackSearch(query: string) {
   try {
     await connectToDatabase()

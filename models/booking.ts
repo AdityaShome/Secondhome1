@@ -11,8 +11,19 @@ export interface IBooking extends Document {
   checkOutDate?: Date
   status: "pending" | "confirmed" | "cancelled" | "completed"
   paymentStatus: "pending" | "paid" | "refunded"
-  paymentMethod?: "paypal" | "card" | "upi"
+  paymentMethod?: "paypal" | "card" | "upi" | "fintech"
   paymentId?: string
+  // Business Model - Revenue Stream 2: Booking Commission
+  firstMonthRent: number
+  commissionRate: number // 5-10%
+  commissionAmount: number
+  // Business Model - Revenue Stream 4: Settling In Kits
+  settlingInKit?: {
+    packageId: string
+    packageName: string
+    price: number
+    items: string[]
+  }
   createdAt: Date
   updatedAt?: Date
 }
@@ -38,9 +49,20 @@ const BookingSchema = new Schema<IBooking>({
   },
   paymentMethod: {
     type: String,
-    enum: ["paypal", "card", "upi"],
+    enum: ["paypal", "card", "upi", "fintech"],
   },
   paymentId: { type: String },
+  // Business Model - Revenue Stream 2: Booking Commission
+  firstMonthRent: { type: Number },
+  commissionRate: { type: Number, default: 7.5 }, // Default 7.5% (middle of 5-10%)
+  commissionAmount: { type: Number },
+  // Business Model - Revenue Stream 4: Settling In Kits
+  settlingInKit: {
+    packageId: { type: String },
+    packageName: { type: String },
+    price: { type: Number },
+    items: [{ type: String }],
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date },
 })

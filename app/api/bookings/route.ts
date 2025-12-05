@@ -43,6 +43,8 @@ export async function POST(req: Request) {
     const roomType = body.roomType
     const totalAmount = body.totalAmount
     const guests = body.guests || 1
+    // Business Model - Revenue Stream 4: Settling In Kits
+    const settlingInKit = body.settlingInKit || null
 
     if (!propertyId || !checkInDate) {
       return NextResponse.json({ error: "Missing required fields (property and checkIn)" }, { status: 400 })
@@ -73,18 +75,35 @@ export async function POST(req: Request) {
       price = roomTypeInfo.price
     }
 
+    // Business Model - Revenue Stream 2: Calculate Booking Commission (5-10% of first month rent)
+    const firstMonthRent = price
+    const commissionRate = body.commissionRate || 7.5 // Default 7.5% (middle of 5-10% range)
+    const commissionAmount = Math.round((firstMonthRent * commissionRate) / 100)
+
+    // Calculate total amount: first month rent + commission + settling in kit (if selected)
+    let totalBookingAmount = firstMonthRent + commissionAmount
+    if (settlingInKit && settlingInKit.price) {
+      totalBookingAmount += settlingInKit.price
+    }
+
     // Create booking
     const newBooking = new Booking({
       user: session.user.id,
       property: propertyId,
       roomType: roomType || "Standard",
       price,
-      totalAmount: price,
+      totalAmount: totalBookingAmount,
       checkInDate: new Date(checkInDate),
       checkOutDate: checkOutDate ? new Date(checkOutDate) : null,
       guests,
       status: "pending",
       paymentStatus: "pending",
+      // Business Model - Revenue Stream 2: Booking Commission
+      firstMonthRent,
+      commissionRate,
+      commissionAmount,
+      // Business Model - Revenue Stream 4: Settling In Kits
+      settlingInKit: settlingInKit || undefined,
       createdAt: new Date(),
     })
 

@@ -171,7 +171,7 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-xl font-bold mt-8 mb-4">9. Contact Us</h2>
             <p className="mb-4">If you have any questions about this Privacy Policy, please contact us at:</p>
             <p className="mb-4">
-              Email: privacy@secondhome.com
+              Email: second.home2k25@gmail.com
               <br />
               Address: 123 Startup Hub, Koramangala, Bangalore, India - 560034
             </p>

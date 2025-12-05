@@ -71,6 +71,30 @@ export interface IProperty extends Document {
     redFlags: string[]
     reason: string
   }
+  // Verification Badge System (Business Model - Revenue Stream 1)
+  // Flow: Payment → Pending Verification → Executive Visit → Verified
+  verificationStatus?: "pending" | "verified" | "rejected" // pending = payment done, awaiting executive visit
+  verificationFee?: number
+  verificationPaymentId?: string
+  verificationPaidAt?: Date
+  // Executive Visit Details
+  executiveVisit?: {
+    scheduledAt?: Date
+    visitedAt?: Date
+    visitedBy?: mongoose.Types.ObjectId
+    checks: {
+      wifiTested: boolean
+      wifiSpeed?: string // e.g., "Ultra Fast"
+      rawVideoCheck: boolean
+      videoUrl?: string
+      physicalInspection: boolean
+      notes?: string
+    }
+    approvedAt?: Date
+    approvedBy?: mongoose.Types.ObjectId
+  }
+  verifiedAt?: Date
+  verifiedBy?: mongoose.Types.ObjectId
   createdAt: Date
   updatedAt?: Date
 }
@@ -164,8 +188,41 @@ const PropertySchema = new Schema<IProperty>({
     redFlags: [{ type: String }],
     reason: { type: String },
   },
+  // Verification Badge System (Business Model - Revenue Stream 1)
+  // Flow: Payment → Pending Verification → Executive Visit → Verified
+  verificationStatus: { 
+    type: String, 
+    enum: ["pending", "verified", "rejected"], 
+    default: undefined 
+  }, // pending = payment done, awaiting executive visit
+  verificationFee: { type: Number, default: 500 },
+  verificationPaymentId: { type: String },
+  verificationPaidAt: { type: Date },
+  // Executive Visit Details
+  executiveVisit: {
+    scheduledAt: { type: Date },
+    visitedAt: { type: Date },
+    visitedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    checks: {
+      wifiTested: { type: Boolean, default: false },
+      wifiSpeed: { type: String }, // e.g., "Ultra Fast"
+      rawVideoCheck: { type: Boolean, default: false },
+      videoUrl: { type: String },
+      physicalInspection: { type: Boolean, default: false },
+      notes: { type: String },
+    },
+    approvedAt: { type: Date },
+    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+  },
+  verifiedAt: { type: Date },
+  verifiedBy: { type: Schema.Types.ObjectId, ref: "User" },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date },
+})
+
+// Helper method to check if property is verified
+PropertySchema.virtual("isVerified").get(function() {
+  return this.verificationStatus === "verified"
 })
 
 // Create geospatial index for location-based queries

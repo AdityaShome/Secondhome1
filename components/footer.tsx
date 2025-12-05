@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { Home, Mail, Phone, MapPin, Instagram, Facebook, Twitter, Linkedin, ArrowRight, Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,16 @@ export default function Footer() {
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isSubscribed, setIsSubscribed] = useState(false)
+
+  // Socials from env so links always work or are hidden if not set
+  const socials = useMemo(() => {
+    return [
+      { Icon: Instagram, label: "Instagram", href: process.env.NEXT_PUBLIC_INSTAGRAM_URL },
+      { Icon: Facebook, label: "Facebook", href: process.env.NEXT_PUBLIC_FACEBOOK_URL },
+      { Icon: Twitter, label: "Twitter", href: process.env.NEXT_PUBLIC_TWITTER_URL },
+      { Icon: Linkedin, label: "LinkedIn", href: process.env.NEXT_PUBLIC_LINKEDIN_URL },
+    ].filter((s) => !!s.href)
+  }, [])
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -121,23 +131,22 @@ export default function Footer() {
             <p className="text-gray-600 leading-relaxed">
               Simplifying student accommodation across India. Find your perfect place near campus.
             </p>
-            <div className="flex gap-3 pt-2">
-              {[
-                { Icon: Instagram, label: "Instagram" },
-                { Icon: Facebook, label: "Facebook" },
-                { Icon: Twitter, label: "Twitter" },
-                { Icon: Linkedin, label: "LinkedIn" },
-              ].map(({ Icon, label }) => (
-                <Link
-                  key={label}
-                  href="#"
-                  className="w-10 h-10 rounded-full bg-gray-100 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all duration-300 hover:scale-110 border border-gray-200"
-                  aria-label={label}
-                >
-                  <Icon className="h-5 w-5" />
-                </Link>
-              ))}
-            </div>
+            {socials.length > 0 && (
+              <div className="flex gap-3 pt-2">
+                {socials.map(({ Icon, label, href }) => (
+                  <a
+                    key={label}
+                    href={href as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-full bg-gray-100 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all duration-300 hover:scale-110 border border-gray-200"
+                    aria-label={label}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -199,15 +208,15 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-3 group cursor-pointer hover:text-orange-500 transition-colors">
                 <Phone className="w-5 h-5 text-orange-500 flex-shrink-0" />
-                <span className="text-gray-600 group-hover:text-gray-900 transition-colors">
-                  +91 98765 43210
-                </span>
+                <a href="tel:+917384662005" className="text-gray-600 group-hover:text-gray-900 transition-colors">
+                  +91 73846 62005
+                </a>
               </li>
               <li className="flex items-center gap-3 group cursor-pointer hover:text-orange-500 transition-colors">
                 <Mail className="w-5 h-5 text-orange-500 flex-shrink-0" />
-                <span className="text-gray-600 group-hover:text-gray-900 transition-colors">
-                  info@secondhome.com
-                </span>
+                <a href="mailto:second.home2k25@gmail.com" className="text-gray-600 group-hover:text-gray-900 transition-colors">
+                  second.home2k25@gmail.com
+                </a>
               </li>
             </ul>
           </div>

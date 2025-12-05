@@ -68,7 +68,11 @@ export async function GET(request: Request) {
     } else {
       [properties, total] = await Promise.all([
         Property.find(query)
-          .sort({ createdAt: -1 })
+          .sort({ 
+            // Prioritize verified properties (Business Model - Max Recommendations)
+            verificationStatus: -1, // verified first
+            createdAt: -1 
+          })
           .skip(skip)
           .limit(limit)
           .populate("owner", "name email"),

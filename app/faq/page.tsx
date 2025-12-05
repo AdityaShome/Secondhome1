@@ -130,7 +130,7 @@ const faqs = [
       {
         question: "What should I do if I encounter a technical issue?",
         answer:
-          "If you encounter any technical issues while using our platform, please contact our support team at support@secondhome.com. Include details of the issue, screenshots if possible, and the device and browser you're using to help us resolve the problem quickly.",
+          "If you encounter any technical issues while using our platform, please contact our support team at second.home2k25@gmail.com or WhatsApp us at +91 73846 62005. Include details of the issue, screenshots if possible, and the device and browser you're using to help us resolve the problem quickly.",
       },
       {
         question: "Is the Second Home website mobile-friendly?",
