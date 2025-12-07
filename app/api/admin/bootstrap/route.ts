@@ -16,7 +16,8 @@ export async function POST(req: Request) {
   const token = req.headers.get("x-admin-seed-token")
   const expected = process.env.ADMIN_SEED_TOKEN
 
-  if (!expected || token !== expected) {
+  // If ADMIN_SEED_TOKEN is set, enforce it. If not set, allow open bootstrap.
+  if (expected && token !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

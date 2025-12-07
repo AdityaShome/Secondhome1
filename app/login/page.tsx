@@ -58,6 +58,10 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       await login(values.email, values.password).catch(() => {})
+      // after login attempt, navigate to callback
+      setTimeout(() => {
+        router.push(callbackUrl)
+      }, 300)
     } catch (error) {
       // Errors handled in auth provider
     } finally {
@@ -71,17 +75,22 @@ export default function LoginPage() {
       const email = "second.home2k25@gmail.com"
       const password = "Secondhome@2028"
       setIsLoading(true)
-      login(email, password)
-        .catch(() => {
-          toast({
-            title: "Admin login failed",
-            description: "Please enter credentials manually.",
-            variant: "destructive",
-          })
+      // Use next-auth signIn directly to honor callback and redirect
+      signIn("credentials", {
+        redirect: true,
+        email,
+        password,
+        callbackUrl,
+      }).catch(() => {
+        toast({
+          title: "Admin login failed",
+          description: "Please enter credentials manually.",
+          variant: "destructive",
         })
-        .finally(() => setIsLoading(false))
+        setIsLoading(false)
+      })
     }
-  }, [isAdminAuto, login, toast])
+  }, [isAdminAuto, callbackUrl, toast])
 
   // Show loading while checking authentication (but only for a short time)
   if (status === "loading") {
