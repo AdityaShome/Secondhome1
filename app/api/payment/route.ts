@@ -6,16 +6,24 @@ import { Booking } from "@/models/booking"
 import mongoose from "mongoose"
 
 // PayPal REST API configuration (Direct API calls - no SDK)
-const PAYPAL_API_URL = process.env.PAYPAL_MODE === "live" 
+const PAYPAL_API_URL = process.env.PAYPAL_MODE === "live"
   ? "https://api-m.paypal.com"
   : "https://api-m.sandbox.paypal.com"
 
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID!
-const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET!
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID
+const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET
+
+function missingCreds() {
+  return !PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET
+}
 
 // Get PayPal access token
 async function getPayPalAccessToken() {
-  const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString("base64")
+  if (missingCreds()) {
+    throw new Error("Missing PayPal credentials")
+  }
+
+  const auth = Buffer.from(`${PAYPAL_CLIENT_ID!}:${PAYPAL_CLIENT_SECRET!}`).toString("base64")
   
   const response = await fetch(`${PAYPAL_API_URL}/v1/oauth2/token`, {
     method: "POST",
@@ -41,6 +49,10 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { bookingId, action, orderId } = body
 
+    if (missingCreds()) {
+      return NextResponse.json({ error: "Payment unavailable: PayPal credentials not configured" }, { status: 500 })
+    }
+
     // Handle PayPal order creation
     if (action === "create") {
       if (!bookingId) {
@@ -55,7 +67,7 @@ export async function POST(req: Request) {
     await connectToDatabase()
 
     // Find the booking
-    const booking = await Booking.findById(bookingId).populate("property")
+      const booking = await Booking.findById(bookingId).populate("property")
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
@@ -73,7 +85,10 @@ export async function POST(req: Request) {
 
       // Create PayPal order via REST API
       const accessToken = await getPayPalAccessToken()
-      
+      if (!accessToken) {
+        return NextResponse.json({ error: "Failed to obtain PayPal access token" }, { status: 500 })
+      }
+
       const orderPayload = {
         intent: "CAPTURE",
         purchase_units: [
@@ -100,8 +115,15 @@ export async function POST(req: Request) {
       const order = await orderResponse.json()
 
       if (!orderResponse.ok) {
-        console.error("PayPal order creation failed:", order)
-        return NextResponse.json({ error: order.message || "Failed to create PayPal order" }, { status: 500 })
+        console.error("PayPal order creation failed:", {
+          status: orderResponse.status,
+          statusText: orderResponse.statusText,
+          body: order,
+        })
+        return NextResponse.json(
+          { error: order.message || order.error || "Failed to create PayPal order", details: order },
+          { status: orderResponse.status || 500 },
+        )
       }
 
       return NextResponse.json({
@@ -118,6 +140,9 @@ export async function POST(req: Request) {
 
       // Capture the payment via REST API
       const accessToken = await getPayPalAccessToken()
+      if (!accessToken) {
+        return NextResponse.json({ error: "Failed to obtain PayPal access token" }, { status: 500 })
+      }
       
       const captureResponse = await fetch(`${PAYPAL_API_URL}/v2/checkout/orders/${orderId}/capture`, {
         method: "POST",
@@ -130,8 +155,15 @@ export async function POST(req: Request) {
       const capture = await captureResponse.json()
 
       if (!captureResponse.ok) {
-        console.error("PayPal capture failed:", capture)
-        return NextResponse.json({ error: capture.message || "Payment capture failed" }, { status: 500 })
+        console.error("PayPal capture failed:", {
+          status: captureResponse.status,
+          statusText: captureResponse.statusText,
+          body: capture,
+        })
+        return NextResponse.json(
+          { error: capture.message || capture.error || "Payment capture failed", details: capture },
+          { status: captureResponse.status || 500 },
+        )
       }
 
       if (capture.status === "COMPLETED") {

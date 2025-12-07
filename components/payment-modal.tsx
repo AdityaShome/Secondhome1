@@ -44,6 +44,8 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
   const [currentStep, setCurrentStep] = useState(1)
   const [paypalLoaded, setPaypalLoaded] = useState(false)
   const [paypalButtonsRendered, setPaypalButtonsRendered] = useState(false)
+  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
+  const paypalCurrency = process.env.NEXT_PUBLIC_PAYPAL_CURRENCY || "USD"
 
   // Reset PayPal state when modal closes
   useEffect(() => {
@@ -56,19 +58,22 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
 
   // Load PayPal SDK when user selects PayPal
   useEffect(() => {
-    console.log("🚀 PayPal useEffect triggered!", { isOpen, paymentMethod, currentStep })
-    
     // Only load PayPal when modal is open AND PayPal is selected
     if (!isOpen || paymentMethod !== "paypal") {
-      console.log("❌ Skipping PayPal load:", { isOpen, paymentMethod })
       return
     }
 
-    console.log("✅ Modal is open AND PayPal selected, proceeding with load...")
+    if (!paypalClientId) {
+      toast({
+        title: "Payment unavailable",
+        description: "PayPal client ID missing. Please contact support.",
+        variant: "destructive",
+      })
+      return
+    }
 
     // Already loaded
     if (window.paypal) {
-      console.log("✅ PayPal already in window")
       setPaypalLoaded(true)
       return
     }
@@ -92,56 +97,27 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
     }
 
     // Create script
-    const CLIENT_ID = "AeNGuqcpFpzrOUtho49tMU3vs1el4uvTccOO3z5RXyfte2JbkAT-2sY3Zq-cwiaAstq9FZ6XadxWhFdx"
-    
-    console.log("🔵 Creating PayPal script...")
-    console.log("Client ID (full):", CLIENT_ID)
-    console.log("Client ID (first 20 chars):", CLIENT_ID.substring(0, 20))
-    console.log("Client ID length:", CLIENT_ID.length)
-    
-    const script = document.createElement('script')
-    const scriptUrl = `https://www.paypal.com/sdk/js?client-id=${CLIENT_ID}&currency=USD`
+    const script = document.createElement("script")
+    const scriptUrl = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${paypalCurrency}&intent=capture`
     script.src = scriptUrl
     script.async = true
-    
-    console.log("📡 Loading PayPal from URL:")
-    console.log(scriptUrl)
-    
+
     script.onload = () => {
-      console.log("✅ PayPal script tag loaded!")
-      console.log("Checking what's in window.paypal:", window.paypal)
-      console.log("Checking window object keys containing 'paypal':", Object.keys(window).filter(k => k.toLowerCase().includes('paypal')))
-      
       // Wait for PayPal SDK to actually initialize
       let attempts = 0
       const checkPayPal = setInterval(() => {
         attempts++
-        
-        if (attempts % 10 === 0) {
-          console.log(`🔍 Still checking... attempt ${attempts}`)
-          console.log("window.paypal:", window.paypal)
-          console.log("typeof window.paypal:", typeof window.paypal)
-        }
-        
+
         if (window.paypal) {
-          console.log("✅ window.paypal found!")
-          console.log("window.paypal keys:", Object.keys(window.paypal))
-          console.log("window.paypal.Buttons?", window.paypal.Buttons)
-          
           if (window.paypal.Buttons) {
-            console.log("✅ window.paypal.Buttons available!")
             clearInterval(checkPayPal)
             setPaypalLoaded(true)
           } else {
-            console.log("⚠️ window.paypal exists but no Buttons yet")
+            // keep waiting
           }
         }
-        
+
         if (attempts > 50) { // 5 seconds
-          console.error("❌ PayPal SDK never initialized after 5 seconds!")
-          console.error("Final window.paypal state:", window.paypal)
-          console.error("Check Network tab for failed PayPal script load")
-          console.error("Check browser console for PayPal-specific errors")
           clearInterval(checkPayPal)
           toast({
             title: "PayPal Load Failed",
@@ -152,8 +128,7 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
       }, 100)
     }
     
-    script.onerror = (e) => {
-      console.error("❌ PayPal script error:", e)
+    script.onerror = () => {
       toast({
         title: "Payment Error",
         description: "Failed to load PayPal SDK. Check your internet connection.",
@@ -162,48 +137,23 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
     }
     
     document.head.appendChild(script)
-    console.log("📄 PayPal script added to <head>")
-    console.log("📄 Script element:", script)
-    console.log("📄 Script src:", script.src)
-    console.log("📄 Script in DOM?", document.head.contains(script))
-    console.log("📄 All PayPal scripts in DOM:", document.querySelectorAll('script[src*="paypal"]').length)
-  }, [isOpen, paymentMethod, toast])  // Re-run when paymentMethod changes!
+  }, [isOpen, paymentMethod, toast, paypalClientId, paypalCurrency])  // Re-run when paymentMethod changes!
 
   // Render PayPal buttons when ready
   useEffect(() => {
     if (paymentMethod === "paypal" && currentStep === 2 && paypalLoaded && window.paypal && !paypalButtonsRendered) {
-      console.log("🔵 All conditions met for PayPal buttons!")
-      console.log("- Payment method:", paymentMethod)
-      console.log("- Step:", currentStep)
-      console.log("- PayPal loaded:", paypalLoaded)
-      console.log("- window.paypal:", !!window.paypal)
-      console.log("- Buttons rendered:", paypalButtonsRendered)
-      
       const timer = setTimeout(() => {
-        console.log("⏰ Timer fired - rendering buttons now...")
         renderPayPalButtons()
       }, 500)
       
       return () => {
-        console.log("🧹 Cleanup timer")
         clearTimeout(timer)
       }
-    } else {
-      console.log("⚠️ Waiting for PayPal conditions:", {
-        paymentMethod,
-        currentStep,
-        paypalLoaded,
-        hasPayPal: !!window.paypal,
-        paypalButtonsRendered
-      })
     }
   }, [paymentMethod, currentStep, paypalLoaded, paypalButtonsRendered])
 
   const renderPayPalButtons = () => {
-    console.log("🎯 renderPayPalButtons called")
-    
     if (!window.paypal) {
-      console.error("❌ window.paypal is not available!")
       toast({
         title: "PayPal Error",
         description: "PayPal SDK not loaded",
@@ -213,7 +163,6 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
     }
     
     if (!window.paypal.Buttons) {
-      console.error("❌ window.paypal.Buttons is not available!")
       toast({
         title: "PayPal Error",
         description: "PayPal Buttons not initialized",
@@ -225,13 +174,11 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
     console.log("✅ window.paypal.Buttons confirmed available!")
     
     if (paypalButtonsRendered) {
-      console.log("⚠️ Buttons already rendered, skipping")
       return
     }
 
     const container = document.getElementById("paypal-button-container")
     if (!container) {
-      console.error("❌ Container #paypal-button-container not found!")
       toast({
         title: "Container Error",
         description: "PayPal container not found",
@@ -239,9 +186,6 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
       })
       return
     }
-
-    console.log("✅ Container found, rendering buttons...")
-    // Container is empty by default (hidden), PayPal SDK will populate it
 
     window.paypal
       .Buttons({
@@ -264,7 +208,6 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
 
             return data.orderId
           } catch (error) {
-            console.error("Error creating PayPal order:", error)
             toast({
               title: "Error",
               description: error instanceof Error ? error.message : "Failed to create payment order",
@@ -306,7 +249,6 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
               onClose()
             }, 3000)
           } catch (error) {
-            console.error("Error capturing payment:", error)
             toast({
               title: "Payment failed",
               description: error instanceof Error ? error.message : "Failed to process payment",
@@ -316,7 +258,6 @@ export function PaymentModal({ isOpen, onClose, bookingId, amount, propertyName 
           }
         },
         onError: (err: any) => {
-          console.error("PayPal error:", err)
           toast({
             title: "Payment error",
             description: "An error occurred with PayPal. Please try again.",

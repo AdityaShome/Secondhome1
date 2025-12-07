@@ -1,65 +1,77 @@
 "use client"
 
-import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { Package, CheckCircle2, IndianRupee, Sparkles } from "lucide-react"
+import { Package, CheckCircle2, IndianRupee, Sparkles, Clock, ShieldCheck } from "lucide-react"
 
-interface SettlingInKit {
+export interface SettlingInKit {
   packageId: string
   packageName: string
   description: string
   price: number
   items: string[]
   popular?: boolean
+  valueProp?: string
 }
 
 const SETTLING_IN_KITS: SettlingInKit[] = [
   {
     packageId: "starter",
-    packageName: "Starter Pack",
-    description: "Essential items to get you started",
-    price: 899,
-    items: ["Mattress (Single)", "Bucket", "Mug", "Extension Cord (5m)", "Torch"],
+    packageName: "Day Zero Starter",
+    description: "Bare essentials ready before you walk in",
+    price: 1299,
+    items: ["Mattress (single)", "Bucket + mug", "Hangers (6)", "Extension cord (5m)", "Torch"],
+    valueProp: "Fastest drop",
   },
   {
     packageId: "comfort",
     packageName: "Comfort Pack",
-    description: "Everything you need for a comfortable stay",
-    price: 1499,
-    items: ["Mattress (Single)", "Pillow", "Bed Sheet Set", "Bucket", "Mug", "Extension Cord (10m)", "Torch", "Door Mat"],
+    description: "Delivered and placed in your room ~2h before check-in",
+    price: 1999,
+    items: [
+      "Mattress (single)",
+      "Pillow",
+      "Bed sheet + cover",
+      "Bucket + mug set",
+      "Extension cord (10m)",
+      "Door mat",
+      "Dustbin + liners",
+      "20L water can",
+    ],
     popular: true,
+    valueProp: "Best value",
   },
   {
     packageId: "premium",
     packageName: "Premium Pack",
-    description: "Complete setup with premium quality items",
-    price: 2499,
+    description: "Full setup with quality upgrades and extras",
+    price: 2599,
     items: [
-      "Premium Mattress (Single)",
+      "Premium mattress (single)",
       "Pillows (2)",
-      "Premium Bed Sheet Set",
-      "Bucket + Mug Set",
-      "Extension Cord (15m)",
-      "Torch",
-      "Door Mat",
-      "Study Lamp",
-      "Wall Hooks Set",
-      "Storage Box",
+      "Premium bed sheet set",
+      "Bucket + mug set",
+      "Extension cord (15m)",
+      "Door mat",
+      "Study lamp",
+      "Storage box",
+      "Cleaning wipes + repellent",
+      "Dustbin + liners",
     ],
+    valueProp: "Everything covered",
   },
 ]
 
 interface SettlingInKitsProps {
   selectedKit: SettlingInKit | null
   onKitSelect: (kit: SettlingInKit | null) => void
+  orientation?: "grid" | "stacked"
 }
 
-export function SettlingInKits({ selectedKit, onKitSelect }: SettlingInKitsProps) {
-  const [hoveredKit, setHoveredKit] = useState<string | null>(null)
+export function SettlingInKits({ selectedKit, onKitSelect, orientation = "grid" }: SettlingInKitsProps) {
+  const gridClass =
+    orientation === "stacked" ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
 
   return (
     <div className="space-y-4">
@@ -71,13 +83,12 @@ export function SettlingInKits({ selectedKit, onKitSelect }: SettlingInKitsProps
         </Badge>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
-        Get everything delivered to your room on Day 1. Skip the hassle of buying essentials separately!
+        Delivered and placed in your room ~2 hours before check-in (or as soon as you arrive if you book last-minute). No runs to the store, no carrying bulky basics.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid ${gridClass} gap-4`}>
         {SETTLING_IN_KITS.map((kit) => {
           const isSelected = selectedKit?.packageId === kit.packageId
-          const isHovered = hoveredKit === kit.packageId
 
           return (
             <Card
@@ -87,8 +98,6 @@ export function SettlingInKits({ selectedKit, onKitSelect }: SettlingInKitsProps
                   ? "ring-2 ring-primary shadow-lg"
                   : "hover:shadow-md hover:border-primary/50"
               } ${kit.popular ? "border-orange-300" : ""}`}
-              onMouseEnter={() => setHoveredKit(kit.packageId)}
-              onMouseLeave={() => setHoveredKit(null)}
               onClick={() => onKitSelect(isSelected ? null : kit)}
             >
               {kit.popular && (
@@ -112,6 +121,13 @@ export function SettlingInKits({ selectedKit, onKitSelect }: SettlingInKitsProps
                     <IndianRupee className="h-5 w-5 text-primary" />
                     <span className="text-2xl font-bold">{kit.price.toLocaleString()}</span>
                   </div>
+
+                  {kit.valueProp && (
+                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1 w-fit">
+                      <ShieldCheck className="h-4 w-4" />
+                      {kit.valueProp}
+                    </div>
+                  )}
 
                   {/* Items List */}
                   <ul className="space-y-1.5">
@@ -154,18 +170,15 @@ export function SettlingInKits({ selectedKit, onKitSelect }: SettlingInKitsProps
           <div className="flex items-start gap-3">
             <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900 mb-1">
-                Delivered to Your Room on Day 1
-              </p>
-              <p className="text-xs text-blue-700">
-                All items will be delivered to your accommodation on the day you move in. 
-                No need to carry heavy items or search for stores!
+              <p className="text-sm font-medium text-blue-900 mb-1">Day Zero delivery guarantee</p>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                We schedule delivery ~2 hours before your chosen check-in. If you book inside the 2-hour window, we auto-upgrade to fastest dispatch and target your arrival time. Photo proof on drop + warden handoff.
               </p>
             </div>
+            <Clock className="h-4 w-4 text-blue-500 mt-0.5" />
           </div>
         </CardContent>
       </Card>
     </div>
   )
 }
-

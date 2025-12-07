@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import nodemailer from "nodemailer"
 import { connectToDatabase } from "@/lib/mongodb"
 import { Property } from "@/models/property"
 import { getServerSession } from "next-auth/next"
@@ -167,6 +168,72 @@ export async function POST(req: Request) {
     })
 
     await newProperty.save()
+
+    // Send AI verification report to SecondHome official inbox for audit
+    try {
+      const officialEmail =
+        process.env.OFFICIAL_VERIFICATION_EMAIL ||
+        "second.home2k25@gmail.com"
+
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}` ||
+        "https://secondhome-eight.vercel.app"
+
+      const reviewLink = `${baseUrl}/admin/properties`
+
+      if (officialEmail) {
+        const transporter = nodemailer.createTransport({
+          host: "smtp.gmail.com",
+          port: 587,
+          secure: false,
+          auth: {
+            user: process.env.EMAIL_USER || process.env.HOST_EMAIL,
+            pass: process.env.EMAIL_PASSWORD || process.env.HOST_EMAIL_PASSWORD,
+          },
+        })
+
+        const aiSummary = aiVerification
+          ? JSON.stringify(aiVerification, null, 2)
+          : "AI verification unavailable (manual review required)"
+
+        const propertySummary = JSON.stringify(newProperty.toObject(), null, 2)
+        const subjectStatus = autoApproved ? "AUTO-APPROVED" : "PENDING REVIEW"
+        const htmlBody = `
+          <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.6;">
+            <h2>New Property Submitted</h2>
+            <p>Status: <strong>${subjectStatus}</strong></p>
+            <p><strong>Title:</strong> ${newProperty.title}</p>
+            <p><strong>Location:</strong> ${newProperty.location || "N/A"}</p>
+            <p><strong>Owner:</strong> ${newProperty.owner}</p>
+            <h3>AI Verification Summary</h3>
+            <pre style="background:#f6f8fa;padding:12px;border-radius:8px;border:1px solid #ddd;white-space:pre-wrap;">${aiSummary}</pre>
+            <h3>Property Details</h3>
+            <pre style="background:#f6f8fa;padding:12px;border-radius:8px;border:1px solid #ddd;white-space:pre-wrap;">${propertySummary}</pre>
+            <div style="margin-top:24px;">
+              <a href="${reviewLink}" 
+                 style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
+                Review & List This Property
+              </a>
+            </div>
+            <p style="margin-top:12px;font-size:12px;color:#555;">This action requires admin access.</p>
+          </div>
+        `
+
+        await transporter.sendMail({
+          from: `"Second Home Verification" <${process.env.EMAIL_USER || process.env.HOST_EMAIL}>`,
+          to: officialEmail,
+          subject: `AI Verification Report - ${newProperty.title} [${subjectStatus}]`,
+          text: `New property submitted.\n\nStatus: ${subjectStatus}\nTitle: ${newProperty.title}\nLocation: ${newProperty.location}\nOwner: ${newProperty.owner}\n\nAI Verification Summary:\n${aiSummary}\n\nProperty Details:\n${propertySummary}\n\nReview & list: ${reviewLink}`,
+          html: htmlBody,
+        })
+        console.log("✅ Verification email sent to official inbox")
+      } else {
+        console.warn("⚠️ OFFICIAL_VERIFICATION_EMAIL not configured; skipping audit email")
+      }
+    } catch (emailErr) {
+      console.error("⚠️ Failed to send verification email:", emailErr)
+    }
 
     // Send notification to admin only if needs manual review
     if (!autoApproved) {

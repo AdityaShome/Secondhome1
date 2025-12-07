@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
   MapPin,
@@ -40,6 +40,7 @@ import { ShareModal } from "@/components/share-modal"
 import { ReviewForm } from "@/components/review-form"
 import { ReviewsList } from "@/components/reviews-list"
 import { WhatsAppChatButton, WhatsAppScheduleButton } from "@/components/whatsapp-chat-button"
+import { SettlingInKits, type SettlingInKit } from "@/components/settling-in-kits"
 
 interface Property {
   _id: string
@@ -88,6 +89,29 @@ interface Property {
   }
 }
 
+const formatDateTimeLocal = (date: Date) => {
+  const pad = (value: number) => value.toString().padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const getDefaultCheckInDateTime = () => {
+  const date = new Date()
+  date.setDate(date.getDate() + 1)
+  date.setHours(10, 0, 0, 0)
+  return formatDateTimeLocal(date)
+}
+
+const getDeliveryPromiseCopy = (checkInValue: string) => {
+  const parsed = new Date(checkInValue)
+  if (!checkInValue || Number.isNaN(parsed.getTime())) {
+    return "Tell us when you arrive so we can time delivery ~2 hours before check-in."
+  }
+  const hours = (parsed.getTime() - Date.now()) / 3600000
+  if (hours >= 4) return "We'll place the kit in your room ~2 hours before you arrive."
+  if (hours >= 2) return "Tight window: we aim for before arrival; might land right as you arrive."
+  return "Short notice: dispatching immediately to align with your arrival window."
+}
+
 export default function ListingDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -102,6 +126,9 @@ export default function ListingDetailPage() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [currentBookingId, setCurrentBookingId] = useState<string | null>(null)
   const [isCreatingBooking, setIsCreatingBooking] = useState(false)
+  const [selectedKit, setSelectedKit] = useState<SettlingInKit | null>(null)
+  const [checkInDateTime, setCheckInDateTime] = useState<string>(getDefaultCheckInDateTime())
+  const [bookingTotal, setBookingTotal] = useState<number | null>(null)
 
   const handleBookNow = async () => {
     if (!user) {
@@ -116,7 +143,29 @@ export default function ListingDetailPage() {
 
     if (!property) return
 
+    if (!checkInDateTime) {
+      toast({
+        title: "Choose your check-in time",
+        description: "We need your arrival time to schedule the Day Zero kit.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const parsedCheckIn = new Date(checkInDateTime)
+    if (Number.isNaN(parsedCheckIn.getTime())) {
+      toast({
+        title: "Invalid check-in time",
+        description: "Please pick a valid date and time for check-in.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsCreatingBooking(true)
+
+    const checkOutDate = new Date(parsedCheckIn.getTime() + 86400000 * 30)
+    const commissionRate = 7.5
 
     try {
       // Create a booking
@@ -125,10 +174,18 @@ export default function ListingDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           property: property._id,
-          checkIn: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-          checkOut: new Date(Date.now() + 86400000 * 30).toISOString(), // 30 days later
+          checkIn: parsedCheckIn.toISOString(),
+          checkOut: checkOutDate.toISOString(),
           guests: 1,
-          totalAmount: property.price + property.deposit,
+          commissionRate,
+          settlingInKit: selectedKit
+            ? {
+                packageId: selectedKit.packageId,
+                packageName: selectedKit.packageName,
+                price: selectedKit.price,
+                items: selectedKit.items,
+              }
+            : null,
         }),
       })
 
@@ -139,6 +196,7 @@ export default function ListingDetailPage() {
 
       const data = await response.json()
       setCurrentBookingId(data._id)
+      setBookingTotal(data.totalAmount ?? null)
       setIsPaymentModalOpen(true)
     } catch (error) {
       console.error("Error creating booking:", error)
@@ -204,6 +262,13 @@ export default function ListingDetailPage() {
       </div>
     )
   }
+
+  const commissionRate = 7.5
+  const baseRent = property.price || 0
+  const estimatedCommission = Math.round((baseRent * commissionRate) / 100)
+  const kitPrice = selectedKit?.price || 0
+  const estimatedTotal = baseRent + estimatedCommission + kitPrice
+  const deliveryPromiseCopy = getDeliveryPromiseCopy(checkInDateTime)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
@@ -577,6 +642,65 @@ export default function ListingDetailPage() {
                 )}
               </div>
 
+              {/* Day Zero Settling-In Kit */}
+              <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-gray-900">Day Zero Settling-In Kit</h3>
+                    <p className="text-sm text-gray-600">Delivered ~2h before check-in</p>
+                  </div>
+                  <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-200">
+                    Day 0
+                  </Badge>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-800">Check-in date & time</label>
+                  <Input
+                    type="datetime-local"
+                    value={checkInDateTime}
+                    onChange={(e) => setCheckInDateTime(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">{deliveryPromiseCopy}</p>
+                </div>
+
+                <SettlingInKits
+                  selectedKit={selectedKit}
+                  onKitSelect={setSelectedKit}
+                  orientation="stacked"
+                />
+
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>First month rent</span>
+                    <span className="font-semibold">₹{baseRent.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Commission ({commissionRate}%)</span>
+                    <span className="font-semibold">₹{estimatedCommission.toLocaleString()}</span>
+                  </div>
+                  {selectedKit && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{selectedKit.packageName}</span>
+                      <span className="font-semibold">₹{kitPrice.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Security deposit (paid separately)</span>
+                    <span>
+                      ₹
+                      {typeof property.deposit === "number"
+                        ? property.deposit.toLocaleString()
+                        : property.deposit || "-"}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200 flex items-center justify-between font-semibold">
+                    <span>Estimated total (excl. deposit)</span>
+                    <span className="text-purple-700">₹{estimatedTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Quick Info */}
               {property.distance && (
                 <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
@@ -625,7 +749,7 @@ export default function ListingDetailPage() {
             isOpen={isPaymentModalOpen}
             onClose={() => setIsPaymentModalOpen(false)}
             bookingId={currentBookingId || ""}
-            amount={property.price + property.deposit}
+            amount={bookingTotal ?? estimatedTotal}
             propertyName={property.title}
           />
           <ScheduleVisitModal
