@@ -117,10 +117,19 @@ export async function POST(req: Request) {
 
     try {
       console.log("🤖 Starting AI verification for property...")
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
-        "https://secondhome-zeta.vercel.app"
+
+      const normalizeBaseUrl = () => {
+        const envBase = process.env.NEXT_PUBLIC_BASE_URL?.trim()
+        const vercelBase = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
+        const fallbackProd = "https://secondhome-zeta.vercel.app"
+
+        // If env points to localhost, ignore it for outbound links/emails
+        if (envBase && !envBase.includes("localhost")) return envBase.replace(/\/$/, "")
+        if (vercelBase) return vercelBase.replace(/\/$/, "")
+        return fallbackProd
+      }
+
+      const baseUrl = normalizeBaseUrl()
 
       const verifyResponse = await fetch(`${baseUrl}/api/ai/verify-property`, {
         method: "POST",
@@ -175,15 +184,18 @@ export async function POST(req: Request) {
 
     // Send AI verification report to SecondHome official inbox for audit
     try {
-      const officialEmail =
-        process.env.OFFICIAL_VERIFICATION_EMAIL ||
-        "second.home2k25@gmail.com"
+      const officialEmail = process.env.OFFICIAL_VERIFICATION_EMAIL || "second.home2k25@gmail.com"
 
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}` ||
-        "https://secondhome-zeta.vercel.app"
+      const normalizeBaseUrl = () => {
+        const envBase = process.env.NEXT_PUBLIC_BASE_URL?.trim()
+        const vercelBase = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
+        const fallbackProd = "https://secondhome-zeta.vercel.app"
+        if (envBase && !envBase.includes("localhost")) return envBase.replace(/\/$/, "")
+        if (vercelBase) return vercelBase.replace(/\/$/, "")
+        return fallbackProd
+      }
 
+      const baseUrl = normalizeBaseUrl()
       const reviewLink = `${baseUrl}/admin/properties`
 
       if (officialEmail) {
