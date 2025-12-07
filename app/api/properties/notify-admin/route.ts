@@ -5,6 +5,17 @@ export async function POST(req: Request) {
   try {
     const { propertyId, propertyTitle, ownerName, ownerEmail, aiReview } = await req.json()
 
+    const normalizeBaseUrl = () => {
+      const envBase = process.env.NEXT_PUBLIC_BASE_URL?.trim()
+      const vercelBase = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
+      const fallbackProd = "https://secondhome-zeta.vercel.app"
+      if (envBase && !envBase.includes("localhost")) return envBase.replace(/\/$/, "")
+      if (vercelBase) return vercelBase.replace(/\/$/, "")
+      return fallbackProd
+    }
+
+    const baseUrl = normalizeBaseUrl()
+
     // Check if email credentials are configured
     const emailUser = process.env.EMAIL_USER || process.env.HOST_EMAIL
     const emailPassword = process.env.EMAIL_PASSWORD || process.env.HOST_EMAIL_PASSWORD
@@ -111,10 +122,10 @@ export async function POST(req: Request) {
                 <p><strong>Action Required:</strong> This property listing requires your manual approval before it can go live on Second Home.</p>
 
                 <div style="text-align: center; margin: 30px 0;">
-                  <a href="https://secondhome-eight.vercel.app/admin/properties" class="button">
+                  <a href="${baseUrl}/admin/properties" class="button">
                     📋 Go to Admin Panel
                   </a>
-                  <a href="https://secondhome-eight.vercel.app/listings/${propertyId}" class="button">
+                  <a href="${baseUrl}/listings/${propertyId}" class="button">
                     👁️ Preview Property
                   </a>
                 </div>
@@ -126,7 +137,7 @@ export async function POST(req: Request) {
               </div>
               <div class="footer">
                 <p><strong>Second Home</strong> - Student Accommodation Platform</p>
-                <p>📧 second.home2k25@gmail.com | 🌐 secondhome-eight.vercel.app</p>
+                <p>📧 second.home2k25@gmail.com | 🌐 ${baseUrl.replace(/^https?:\/\//, "")}</p>
                 <p style="font-size: 11px;">This is an automated notification for property listings requiring manual verification.</p>
               </div>
             </div>
