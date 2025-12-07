@@ -29,8 +29,10 @@ export default function LoginPage() {
   const { data: session, status } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const isAdminAuto = searchParams.get("admin") === "1"
+  const redirectParam = searchParams.get("redirect")
 
-  const callbackUrl = searchParams.get("callbackUrl") || searchParams.get("redirect") || "/"
+  const callbackUrl = redirectParam || searchParams.get("callbackUrl") || "/"
 
   // Redirect if already logged in
   useEffect(() => {
@@ -47,8 +49,8 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: isAdminAuto ? "second.home2k25@gmail.com" : "",
+      password: isAdminAuto ? "Secondhome@2028" : "",
     },
   })
 
@@ -62,6 +64,24 @@ export default function LoginPage() {
       setIsLoading(false)
     }
   }
+
+  // Auto-submit for admin auto-login
+  useEffect(() => {
+    if (isAdminAuto) {
+      const email = "second.home2k25@gmail.com"
+      const password = "Secondhome@2028"
+      setIsLoading(true)
+      login(email, password)
+        .catch(() => {
+          toast({
+            title: "Admin login failed",
+            description: "Please enter credentials manually.",
+            variant: "destructive",
+          })
+        })
+        .finally(() => setIsLoading(false))
+    }
+  }, [isAdminAuto, login, toast])
 
   // Show loading while checking authentication (but only for a short time)
   if (status === "loading") {
@@ -138,7 +158,11 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold text-gray-900">Sign In</h2>
-                <p className="text-gray-600">Enter your credentials to access your account</p>
+                <p className="text-gray-600">
+                  {isAdminAuto
+                    ? "Admin access for verification"
+                    : "Enter your credentials to access your account"}
+                </p>
               </div>
 
               {/* Login Form */}
@@ -157,7 +181,7 @@ export default function LoginPage() {
                               {...field}
                               type="email"
                               placeholder="your.email@example.com"
-                              disabled={isLoading}
+                              disabled={isLoading || isAdminAuto}
                               className="pl-11 h-12 border-2 border-gray-300 focus:border-orange-500 bg-white text-gray-900"
                             />
                           </div>
@@ -188,7 +212,7 @@ export default function LoginPage() {
                               {...field}
                               type={showPassword ? "text" : "password"}
                               placeholder="Enter your password"
-                              disabled={isLoading}
+                              disabled={isLoading || isAdminAuto}
                               className="pl-11 pr-11 h-12 border-2 border-gray-300 focus:border-orange-500 bg-white text-gray-900"
                             />
                             <button

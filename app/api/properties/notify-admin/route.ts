@@ -122,7 +122,7 @@ export async function POST(req: Request) {
                 <p><strong>Action Required:</strong> This property listing requires your manual approval before it can go live on Second Home.</p>
 
                 <div style="text-align: center; margin: 30px 0;">
-                  <a href="${baseUrl}/admin/properties" class="button">
+                  <a href="${baseUrl}/login?admin=1&redirect=/admin/properties" class="button">
                     📋 Go to Admin Panel
                   </a>
                   <a href="${baseUrl}/listings/${propertyId}" class="button">
